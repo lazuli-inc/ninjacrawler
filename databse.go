@@ -1,0 +1,271 @@
+package ninjacrawler
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"log/slog"
+)
+
+type client struct {
+	*mongo.Client
+}
+
+// connectDB initializes a new client instance and connects to the MongoDB database.
+func connectDB() *client {
+	return &client{
+		mustGetClient(),
+	}
+}
+
+// mustGetClient creates a MongoDB client and verifies the connection.
+func mustGetClient() *mongo.Client {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	databaseURL := fmt.Sprintf("mongodb://%s:%s@%s:%s",
+		app.Config.Env("DB_USERNAME"),
+		app.Config.Env("DB_PASSWORD"),
+		app.Config.Env("DB_HOST"),
+		app.Config.Env("DB_PORT"),
+	)
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(databaseURL))
+	if err != nil {
+		panic(err)
+	}
+
+	// Check if the connection is established
+	err = client.Ping(ctx, nil)
+	if err != nil {
+		app.Logger.Error("Failed to ping MongoDB: %v", err)
+		panic(err)
+	}
+
+	return client
+}
+
+// getCollection returns a collection from the database and ensures unique indexing.
+func (c *client) getCollection(collectionName string) *mongo.Collection {
+	collection := c.Database(app.Name).Collection(collectionName)
+	ensureUniqueIndex(collection)
+	return collection
+}
+
+// ensureUniqueIndex ensures that the "url" field in the collection has a unique index.
+func ensureUniqueIndex(collection *mongo.Collection) {
+	indexModel := mongo.IndexModel{
+		Keys:    bson.M{"url": 1},
+		Options: options.Index().SetUnique(true),
+	}
+
+	_, err := collection.Indexes().CreateOne(context.Background(), indexModel)
+	if err != nil {
+		app.Logger.Error("Could not create index: %v", err)
+	}
+}
+
+// insert inserts multiple URL collections into the database.
+func (c *client) insert(urlCollections []UrlCollection, parent string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var documents []interface{}
+	for _, urlCollection := range urlCollections {
+		urlCollection := UrlCollection{
+			Url:       urlCollection.Url,
+			Parent:    parent,
+			Status:    false,
+			Error:     false,
+			MetaData:  urlCollection.MetaData,
+			Attempts:  0,
+			CreatedAt: time.Now(),
+			UpdatedAt: nil,
+		}
+		documents = append(documents, urlCollection)
+	}
+
+	opts := options.InsertMany().SetOrdered(false)
+	collection := c.getCollection(app.GetCollection())
+	_, _ = collection.InsertMany(ctx, documents, opts)
+}
+
+// newSite creates a new site collection document in the database.
+func (c *client) newSite() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	document := SiteCollection{
+		Url:       app.Url,
+		BaseUrl:   app.BaseUrl,
+		Status:    false,
+		Attempts:  0,
+		StartedAt: time.Now(),
+		EndedAt:   nil,
+	}
+
+	collection := c.getCollection(app.GetCollection())
+	_, _ = collection.InsertOne(ctx, document)
+}
+
+// saveProductDetail saves or updates a product detail document in the database.
+func (c *client) saveProductDetail(productDetail *ProductDetail) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	collection := c.getCollection(app.GetCollection())
+	_, err := collection.ReplaceOne(ctx, bson.D{{Key: "url", Value: productDetail.Url}}, productDetail, options.Replace().SetUpsert(true))
+	if err != nil {
+		app.Logger.Error("Could not save product detail: %v", err)
+	}
+}
+
+// markAsError marks a URL collection as having encountered an error and updates the database.
+func (c *client) markAsError(url string, dbCollection string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var result bson.M
+
+	collection := c.getCollection(dbCollection)
+	filter := bson.D{{Key: "url", Value: url}}
+
+	err := collection.FindOne(context.TODO(), filter).Decode(&result)
+	if err != nil {
+		return fmt.Errorf("Collection Not Found: %v", err)
+	}
+	timeNow := time.Now()
+	attempts := result["attempts"].(int32) + 1
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "error", Value: true},
+			{Key: "attempts", Value: attempts},
+			{Key: "updated_at", Value: &timeNow},
+		}},
+	}
+
+	_, err = collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("[:%s:%s] could not mark as Error: Please check this [Error]: %v", dbCollection, url, err)
+	}
+
+	return nil
+}
+
+// markAsComplete marks a URL collection as having encountered an error and updates the database.
+func (c *client) markAsComplete(url string, dbCollection string) error {
+
+	timeNow := time.Now()
+
+	collection := c.getCollection(dbCollection)
+
+	filter := bson.D{{Key: "url", Value: url}}
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "status", Value: true},
+			{Key: "updated_at", Value: &timeNow},
+		}},
+	}
+
+	_, err := collection.UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		return fmt.Errorf("[:%s:%s] could not mark as Complete: Please check this [Error]: %v", dbCollection, url, err)
+	}
+	return nil
+}
+
+// getUrlsFromCollection retrieves URLs from a collection that meet specific criteria.
+func (c *client) getUrlsFromCollection(collection string) []string {
+	filterCondition := bson.D{
+		{Key: "status", Value: false},
+		{Key: "attempts", Value: bson.D{{Key: "$lt", Value: 5}}},
+	}
+	return extractUrls(filterData(filterCondition, c.getCollection(collection)))
+}
+
+// getUrlCollections retrieves URL collections from a collection that meet specific criteria.
+func (c *client) getUrlCollections(collection string) []UrlCollection {
+	filterCondition := bson.D{
+		{Key: "status", Value: false},
+		{Key: "attempts", Value: bson.D{{Key: "$lt", Value: 5}}},
+	}
+	return filterUrlData(filterCondition, c.getCollection(collection))
+}
+
+// filterUrlData retrieves URL collections from a collection based on a filter condition.
+func filterUrlData(filterCondition bson.D, mongoCollection *mongo.Collection) []UrlCollection {
+	findOptions := options.Find().SetLimit(1000)
+
+	cursor, err := mongoCollection.Find(context.TODO(), filterCondition, findOptions)
+	if err != nil {
+		app.Logger.Error(err.Error())
+	}
+
+	var results []UrlCollection
+	if err = cursor.All(context.TODO(), &results); err != nil {
+		app.Logger.Error(err.Error())
+	}
+
+	return results
+}
+
+// filterData retrieves documents from a collection based on a filter condition.
+func filterData(filterCondition bson.D, mongoCollection *mongo.Collection) []bson.M {
+	findOptions := options.Find().SetLimit(1000)
+
+	cursor, err := mongoCollection.Find(context.TODO(), filterCondition, findOptions)
+	if err != nil {
+		slog.Error(err.Error())
+	}
+
+	var results []bson.M
+	if err = cursor.All(context.TODO(), &results); err != nil {
+		slog.Error(err.Error())
+	}
+
+	return results
+}
+
+// extractUrls extracts URLs from a list of BSON documents.
+func extractUrls(results []bson.M) []string {
+	var urls []string
+	for _, result := range results {
+		if url, ok := result["url"].(string); ok {
+			urls = append(urls, url)
+		}
+	}
+	return urls
+}
+
+// close closes the MongoDB client connection.
+func (c *client) close() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return c.Disconnect(ctx)
+}
+
+// getUrlCollections retrieves URL collections from a collection that meet specific criteria.
+func (c *client) GetProductDetailCollections(collection string, currentPage int) []ProductDetail {
+	pageSize := 10000
+	findOptions := options.Find()
+	findOptions.SetSkip(int64((currentPage - 1) * pageSize))
+	findOptions.SetLimit(int64(pageSize))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	cursor, err := c.getCollection(collection).Find(context.TODO(), bson.D{}, findOptions)
+	if err != nil {
+		app.Logger.Error(err.Error())
+	}
+
+	defer cursor.Close(ctx)
+
+	var results []ProductDetail
+	if err = cursor.All(context.TODO(), &results); err != nil {
+		app.Logger.Error(err.Error())
+	}
+	return results
+}

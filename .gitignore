@@ -1,0 +1,15 @@
+*.csv
+*.txt
+*.hcl
+*.html
+*.tfstate
+*.log
+.env
+.DS_Store
+
+data/
+logs/
+.terraform/
+.idea/
+.vscode/
+ninjacrawler

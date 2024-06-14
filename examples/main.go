@@ -1,0 +1,47 @@
+package main
+
+import (
+	"github.com/lazuli-inc/ninjacrawler"
+	"github.com/lazuli-inc/ninjacrawler/examples/handlers/aqua"
+	"github.com/lazuli-inc/ninjacrawler/examples/handlers/markt"
+	"github.com/lazuli-inc/ninjacrawler/examples/handlers/sandvik"
+)
+
+func main() {
+
+	// simple
+	ninjacrawler.NewCrawler("aqua", "https://aqua-has.com", ninjacrawler.Engine{
+		IsDynamic:       false,
+		DevCrawlLimit:   1,
+		ConcurrentLimit: 1,
+		BlockResources:  true,
+		BoostCrawling:   true,
+	}).Handle(ninjacrawler.Handler{
+		UrlHandler:     aqua.UrlHandler,
+		ProductHandler: aqua.ProductHandler,
+	})
+	// medium complex
+	ninjacrawler.NewCrawler("markt", "https://markt-mall.jp", ninjacrawler.Engine{
+		BrowserType:     "chromium",
+		ConcurrentLimit: 1,
+		DevCrawlLimit:   5,
+		IsDynamic:       true,
+		BlockResources:  true,
+	}).Handle(ninjacrawler.Handler{
+		UrlHandler:     markt.UrlHandler,
+		ProductHandler: markt.ProductHandler,
+	})
+	// medium complex
+	ninjacrawler.NewCrawler("sandvik", "https://www.sandvik.coromant.com/ja-jp/tools", ninjacrawler.Engine{
+		IsDynamic:       false,
+		DevCrawlLimit:   1,
+		ConcurrentLimit: 1,
+		CookieConsent: &ninjacrawler.CookieAction{
+			ButtonText:       "Accept Cookies",
+			SleepAfterAction: 7, // 7 seconds sleep
+		},
+	}).Handle(ninjacrawler.Handler{
+		UrlHandler:     sandvik.UrlHandler,
+		ProductHandler: sandvik.ProductHandler,
+	})
+}

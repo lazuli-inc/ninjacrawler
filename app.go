@@ -53,7 +53,6 @@ func NewCrawler(name, url string, engines ...Engine) *Crawler {
 		Logger:     logger,
 		Config:     newConfig(),
 	}
-	app.Start()
 
 	return app
 }
@@ -112,6 +111,8 @@ type Handler struct {
 
 func (a *Crawler) Handle(handler Handler) {
 	defer a.Stop() // Ensure Stop is called after handlers
+	// Start the app
+	app.Start()
 
 	if handler.UrlHandler != nil {
 		handler.UrlHandler(a)

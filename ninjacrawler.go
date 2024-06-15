@@ -33,13 +33,7 @@ func (ninja *NinjaCrawler) Start() {
 		cfg := config // Capture config variable for each goroutine
 		go func(cfg CrawlerConfig) {
 			defer wg.Done()
-			crawler := NewCrawler(cfg.Name, cfg.URL, cfg.Engine)
-			if crawler != nil {
-				crawler.Handle(cfg.Handler, crawler)
-			} else {
-				// Handle error if crawler creation fails
-				// Log or manage the failure appropriately
-			}
+			NewCrawler(cfg.Name, cfg.URL, cfg.Engine).Handle(cfg.Handler)
 		}(cfg)
 	}
 

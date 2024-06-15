@@ -12,7 +12,7 @@ import (
 
 // ExportProductDetailsToCSV exports product details to CSV files in chunks.
 func exportProductDetailsToCSV(crawler *Crawler, collection string, startPage int) {
-	fileName := generateCsvFileName(app.Name)
+	fileName := generateCsvFileName(crawler.Name)
 	page := startPage
 
 	for {
@@ -20,9 +20,9 @@ func exportProductDetailsToCSV(crawler *Crawler, collection string, startPage in
 		if len(products) == 0 {
 			break
 		}
-		err := mustWriteDataToCSV(fileName, products, page == startPage)
+		err := mustWriteDataToCSV(crawler, fileName, products, page == startPage)
 		if err != nil {
-			app.Logger.Error("Error writing data to CSV: %v", err)
+			crawler.Logger.Error("Error writing data to CSV: %v", err)
 			return
 		}
 		page++
@@ -30,10 +30,10 @@ func exportProductDetailsToCSV(crawler *Crawler, collection string, startPage in
 
 	fileNameParts := strings.Split(fileName, "/")
 	uploadFileName := fileNameParts[len(fileNameParts)-1]
-	uploadToBucket(fileName, uploadFileName)
+	uploadToBucket(crawler, fileName, uploadFileName)
 }
 
-func mustWriteDataToCSV(filename string, products []ProductDetail, isFirstPage bool) error {
+func mustWriteDataToCSV(crawler *Crawler, filename string, products []ProductDetail, isFirstPage bool) error {
 	// Ensure the directory exists
 	dir := filepath.Dir(filename)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -86,7 +86,7 @@ func mustWriteDataToCSV(filename string, products []ProductDetail, isFirstPage b
 		row, err := convertFieldsToStrings(product)
 		if err != nil {
 			// Assuming there's a logger defined elsewhere
-			app.Logger.Error("Error converting product fields to strings:", err)
+			crawler.Logger.Error("Error converting product fields to strings:", err)
 			continue
 		}
 		if err := writer.Write(row); err != nil {

@@ -14,8 +14,8 @@ type CrawlResult struct {
 	UrlCollection UrlCollection
 }
 
-func (e *Engine) crawlWorker(ctx context.Context, dbCollection string, urlChan <-chan UrlCollection, resultChan chan<- interface{}, proxy Proxy, processor interface{}, isLocalEnv bool, counter *int32) {
-	browser, page, err := GetBrowserPage(app.pw, app.engine.BrowserType, proxy)
+func (app *Crawler) crawlWorker(ctx context.Context, dbCollection string, urlChan <-chan UrlCollection, resultChan chan<- interface{}, proxy Proxy, processor interface{}, isLocalEnv bool, counter *int32) {
+	browser, page, err := app.GetBrowserPage(app.pw, app.engine.BrowserType, proxy)
 	if err != nil {
 		app.Logger.Fatal("failed to initialize browser with Proxy: %v\n", err)
 	}
@@ -41,7 +41,7 @@ func (e *Engine) crawlWorker(ctx context.Context, dbCollection string, urlChan <
 				app.Logger.Info("Crawling %s", urlCollection.Url)
 			}
 
-			doc, err := NavigateToURL(page, urlCollection.Url)
+			doc, err := app.NavigateToURL(page, urlCollection.Url)
 			if err != nil {
 				err := app.markAsError(urlCollection.Url, dbCollection)
 				if err != nil {
@@ -57,10 +57,10 @@ func (e *Engine) crawlWorker(ctx context.Context, dbCollection string, urlChan <
 				results = v(doc, &urlCollection, page)
 
 			case UrlSelector:
-				results = processDocument(doc, v, urlCollection)
+				results = app.processDocument(doc, v, urlCollection)
 
 			case ProductDetailSelector:
-				results = handleProductDetail(doc, urlCollection)
+				results = app.handleProductDetail(doc, urlCollection)
 
 			default:
 				app.Logger.Fatal("Unsupported processor type: %T", processor)
@@ -82,7 +82,7 @@ func (e *Engine) crawlWorker(ctx context.Context, dbCollection string, urlChan <
 	}
 }
 
-func (e *Engine) CrawlUrls(collection string, processor interface{}) {
+func (app *Crawler) CrawlUrls(collection string, processor interface{}) {
 	var items []UrlCollection
 	for {
 
@@ -104,7 +104,7 @@ func (e *Engine) CrawlUrls(collection string, processor interface{}) {
 		}
 		close(urlChan)
 
-		proxyCount := len(e.ProxyServers)
+		proxyCount := len(app.engine.ProxyServers)
 		batchSize := app.engine.ConcurrentLimit
 		totalUrls := len(urlCollections)
 		goroutineCount := min(max(proxyCount, 1)*batchSize, totalUrls)
@@ -112,12 +112,12 @@ func (e *Engine) CrawlUrls(collection string, processor interface{}) {
 		for i := 0; i < goroutineCount; i++ {
 			proxy := Proxy{}
 			if proxyCount > 0 {
-				proxy = e.ProxyServers[i%proxyCount]
+				proxy = app.engine.ProxyServers[i%proxyCount]
 			}
 			wg.Add(1)
 			go func(proxy Proxy) {
 				defer wg.Done()
-				e.crawlWorker(ctx, collection, urlChan, resultChan, proxy, processor, isLocalEnv(), &counter)
+				app.crawlWorker(ctx, collection, urlChan, resultChan, proxy, processor, isLocalEnv(app.Config.GetString("APP_ENV")), &counter)
 			}(proxy)
 		}
 
@@ -144,11 +144,11 @@ func (e *Engine) CrawlUrls(collection string, processor interface{}) {
 						app.Logger.Error(err.Error())
 						continue
 					}
-					app.Logger.Info("[%d] [:%s:] Found From [:%s:%s]", len(res), app.collection, collection, v.UrlCollection.Url)
+					app.Logger.Info("(%d) :%s: Found From [%s => %s]", len(res), app.collection, collection, v.UrlCollection.Url)
 				}
 			}
 
-			if isLocalEnv() && atomic.LoadInt32(&counter) >= int32(app.engine.DevCrawlLimit) {
+			if isLocalEnv(app.Config.GetString("APP_ENV")) && atomic.LoadInt32(&counter) >= int32(app.engine.DevCrawlLimit) {
 				cancel()
 				break
 			}
@@ -156,13 +156,13 @@ func (e *Engine) CrawlUrls(collection string, processor interface{}) {
 
 	}
 
-	app.Logger.Info("Total [:%s:] = [%d]", app.collection, len(items))
+	app.Logger.Info("Total :%s: = (%d)", app.collection, len(items))
 
 }
 
 // CrawlPageDetail initiates the crawling process for detailed page information from the specified collection.
 // It distributes the work among multiple goroutines and uses proxies if available.
-func (e *Engine) CrawlPageDetail(collection string) {
+func (app *Crawler) CrawlPageDetail(collection string) {
 	urlCollections := app.getUrlCollections(collection)
 
 	var wg sync.WaitGroup
@@ -178,7 +178,7 @@ func (e *Engine) CrawlPageDetail(collection string) {
 	}
 	close(urlChan)
 
-	proxyCount := len(e.ProxyServers)
+	proxyCount := len(app.engine.ProxyServers)
 	batchSize := app.engine.ConcurrentLimit
 	totalUrls := len(urlCollections)
 	goroutineCount := min(max(proxyCount, 1)*batchSize, totalUrls) // Determine the required number of goroutines
@@ -186,12 +186,12 @@ func (e *Engine) CrawlPageDetail(collection string) {
 	for i := 0; i < goroutineCount; i++ {
 		proxy := Proxy{}
 		if proxyCount > 0 {
-			proxy = e.ProxyServers[i%proxyCount]
+			proxy = app.engine.ProxyServers[i%proxyCount]
 		}
 		wg.Add(1)
 		go func(proxy Proxy) {
 			defer wg.Done()
-			e.crawlWorker(ctx, collection, urlChan, resultChan, proxy, app.ProductDetailSelector, isLocalEnv(), &counter)
+			app.crawlWorker(ctx, collection, urlChan, resultChan, proxy, app.ProductDetailSelector, isLocalEnv(app.Config.GetString("APP_ENV")), &counter)
 		}(proxy)
 	}
 
@@ -207,7 +207,7 @@ func (e *Engine) CrawlPageDetail(collection string) {
 			switch res := v.Results.(type) {
 			case *ProductDetail:
 				app.saveProductDetail(res)
-				err := submitProductData(res)
+				err := app.submitProductData(res)
 				if err != nil {
 					app.Logger.Fatal("failed to submit product data to API Server: %v", err)
 					err := app.markAsError(v.UrlCollection.Url, collection)
@@ -223,7 +223,7 @@ func (e *Engine) CrawlPageDetail(collection string) {
 					continue
 				}
 				total++
-				if isLocalEnv() && total >= app.engine.DevCrawlLimit {
+				if isLocalEnv(app.Config.GetString("APP_ENV")) && total >= app.engine.DevCrawlLimit {
 					break
 				}
 			}
@@ -234,16 +234,16 @@ func (e *Engine) CrawlPageDetail(collection string) {
 }
 
 // PageSelector adds a new URL selector to the crawler.
-func (a *Crawler) PageSelector(selector UrlSelector) *Crawler {
-	a.UrlSelectors = append(a.UrlSelectors, selector)
-	return a
+func (app *Crawler) PageSelector(selector UrlSelector) *Crawler {
+	app.UrlSelectors = append(app.UrlSelectors, selector)
+	return app
 }
 
 // StartUrlCrawling initiates the URL crawling process for all added selectors.
-func (a *Crawler) StartUrlCrawling() *Crawler {
-	for _, selector := range a.UrlSelectors {
-		a.Collection(selector.ToCollection).
+func (app *Crawler) StartUrlCrawling() *Crawler {
+	for _, selector := range app.UrlSelectors {
+		app.Collection(selector.ToCollection).
 			CrawlUrls(selector.FromCollection, selector)
 	}
-	return a
+	return app
 }

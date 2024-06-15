@@ -11,22 +11,9 @@ import (
 	"log/slog"
 )
 
-type client struct {
-	*mongo.Client
-}
-
-// connectDB initializes a new client instance and connects to the MongoDB database.
-func connectDB() *client {
-	return &client{
-		mustGetClient(),
-	}
-}
-
-// mustGetClient creates a MongoDB client and verifies the connection.
-func mustGetClient() *mongo.Client {
+func (app *Crawler) mustGetClient() *mongo.Client {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
 	databaseURL := fmt.Sprintf("mongodb://%s:%s@%s:%s",
 		app.Config.Env("DB_USERNAME"),
 		app.Config.Env("DB_PASSWORD"),
@@ -48,15 +35,15 @@ func mustGetClient() *mongo.Client {
 	return client
 }
 
-// getCollection returns a collection from the database and ensures unique indexing.
-func (c *client) getCollection(collectionName string) *mongo.Collection {
-	collection := c.Database(app.Name).Collection(collectionName)
-	ensureUniqueIndex(collection)
+// // getCollection returns a collection from the database and ensures unique indexing.
+func (app *Crawler) getCollection(collectionName string) *mongo.Collection {
+	collection := app.Database(app.Name).Collection(collectionName)
+	app.ensureUniqueIndex(collection)
 	return collection
 }
 
 // ensureUniqueIndex ensures that the "url" field in the collection has a unique index.
-func ensureUniqueIndex(collection *mongo.Collection) {
+func (app *Crawler) ensureUniqueIndex(collection *mongo.Collection) {
 	indexModel := mongo.IndexModel{
 		Keys:    bson.M{"url": 1},
 		Options: options.Index().SetUnique(true),
@@ -69,7 +56,7 @@ func ensureUniqueIndex(collection *mongo.Collection) {
 }
 
 // insert inserts multiple URL collections into the database.
-func (c *client) insert(urlCollections []UrlCollection, parent string) {
+func (app *Crawler) insert(urlCollections []UrlCollection, parent string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -89,12 +76,12 @@ func (c *client) insert(urlCollections []UrlCollection, parent string) {
 	}
 
 	opts := options.InsertMany().SetOrdered(false)
-	collection := c.getCollection(app.GetCollection())
+	collection := app.getCollection(app.GetCollection())
 	_, _ = collection.InsertMany(ctx, documents, opts)
 }
 
 // newSite creates a new site collection document in the database.
-func (c *client) newSite() {
+func (app *Crawler) newSite() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -107,16 +94,16 @@ func (c *client) newSite() {
 		EndedAt:   nil,
 	}
 
-	collection := c.getCollection(app.GetCollection())
+	collection := app.getCollection(app.GetCollection())
 	_, _ = collection.InsertOne(ctx, document)
 }
 
 // saveProductDetail saves or updates a product detail document in the database.
-func (c *client) saveProductDetail(productDetail *ProductDetail) {
+func (app *Crawler) saveProductDetail(productDetail *ProductDetail) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	collection := c.getCollection(app.GetCollection())
+	collection := app.getCollection(app.GetCollection())
 	_, err := collection.ReplaceOne(ctx, bson.D{{Key: "url", Value: productDetail.Url}}, productDetail, options.Replace().SetUpsert(true))
 	if err != nil {
 		app.Logger.Error("Could not save product detail: %v", err)
@@ -124,12 +111,12 @@ func (c *client) saveProductDetail(productDetail *ProductDetail) {
 }
 
 // markAsError marks a URL collection as having encountered an error and updates the database.
-func (c *client) markAsError(url string, dbCollection string) error {
+func (app *Crawler) markAsError(url string, dbCollection string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var result bson.M
 
-	collection := c.getCollection(dbCollection)
+	collection := app.getCollection(dbCollection)
 	filter := bson.D{{Key: "url", Value: url}}
 
 	err := collection.FindOne(context.TODO(), filter).Decode(&result)
@@ -148,18 +135,18 @@ func (c *client) markAsError(url string, dbCollection string) error {
 
 	_, err = collection.UpdateOne(ctx, filter, update)
 	if err != nil {
-		return fmt.Errorf("[:%s:%s] could not mark as Error: Please check this [Error]: %v", dbCollection, url, err)
+		return fmt.Errorf("[%s: => %s] could not mark as Error: Please check this [Error]: %v", dbCollection, url, err)
 	}
 
 	return nil
 }
 
 // markAsComplete marks a URL collection as having encountered an error and updates the database.
-func (c *client) markAsComplete(url string, dbCollection string) error {
+func (app *Crawler) markAsComplete(url string, dbCollection string) error {
 
 	timeNow := time.Now()
 
-	collection := c.getCollection(dbCollection)
+	collection := app.getCollection(dbCollection)
 
 	filter := bson.D{{Key: "url", Value: url}}
 	update := bson.D{
@@ -177,25 +164,25 @@ func (c *client) markAsComplete(url string, dbCollection string) error {
 }
 
 // getUrlsFromCollection retrieves URLs from a collection that meet specific criteria.
-func (c *client) getUrlsFromCollection(collection string) []string {
+func (app *Crawler) getUrlsFromCollection(collection string) []string {
 	filterCondition := bson.D{
 		{Key: "status", Value: false},
 		{Key: "attempts", Value: bson.D{{Key: "$lt", Value: 5}}},
 	}
-	return extractUrls(filterData(filterCondition, c.getCollection(collection)))
+	return extractUrls(filterData(filterCondition, app.getCollection(collection)))
 }
 
 // getUrlCollections retrieves URL collections from a collection that meet specific criteria.
-func (c *client) getUrlCollections(collection string) []UrlCollection {
+func (app *Crawler) getUrlCollections(collection string) []UrlCollection {
 	filterCondition := bson.D{
 		{Key: "status", Value: false},
 		{Key: "attempts", Value: bson.D{{Key: "$lt", Value: 5}}},
 	}
-	return filterUrlData(filterCondition, c.getCollection(collection))
+	return app.filterUrlData(filterCondition, app.getCollection(collection))
 }
 
 // filterUrlData retrieves URL collections from a collection based on a filter condition.
-func filterUrlData(filterCondition bson.D, mongoCollection *mongo.Collection) []UrlCollection {
+func (app *Crawler) filterUrlData(filterCondition bson.D, mongoCollection *mongo.Collection) []UrlCollection {
 	findOptions := options.Find().SetLimit(1000)
 
 	cursor, err := mongoCollection.Find(context.TODO(), filterCondition, findOptions)
@@ -240,14 +227,14 @@ func extractUrls(results []bson.M) []string {
 }
 
 // close closes the MongoDB client connection.
-func (c *client) close() error {
+func (app *Crawler) closeClient() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return c.Disconnect(ctx)
+	return app.Disconnect(ctx)
 }
 
 // getUrlCollections retrieves URL collections from a collection that meet specific criteria.
-func (c *client) GetProductDetailCollections(collection string, currentPage int) []ProductDetail {
+func (app *Crawler) GetProductDetailCollections(collection string, currentPage int) []ProductDetail {
 	pageSize := 10000
 	findOptions := options.Find()
 	findOptions.SetSkip(int64((currentPage - 1) * pageSize))
@@ -256,7 +243,7 @@ func (c *client) GetProductDetailCollections(collection string, currentPage int)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	cursor, err := c.getCollection(collection).Find(context.TODO(), bson.D{}, findOptions)
+	cursor, err := app.getCollection(collection).Find(context.TODO(), bson.D{}, findOptions)
 	if err != nil {
 		app.Logger.Error(err.Error())
 	}

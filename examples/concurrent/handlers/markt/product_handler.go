@@ -3,7 +3,7 @@ package markt
 import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/lazuli-inc/ninjacrawler"
-	"github.com/lazuli-inc/ninjacrawler/examples/constant"
+	"github.com/lazuli-inc/ninjacrawler/examples/concurrent/constant"
 	"strings"
 )
 
@@ -31,15 +31,15 @@ func ProductHandler(crawler *ninjacrawler.Crawler) {
 	}
 	crawler.Collection(constant.ProductDetails).CrawlPageDetail(constant.Products)
 }
-func productCodeHandler(document *goquery.Document, urlCollection ninjacrawler.UrlCollection) []string {
+func productCodeHandler(app ninjacrawler.Crawler, document *goquery.Document, urlCollection ninjacrawler.UrlCollection) []string {
 	urlParts := strings.Split(strings.Trim(urlCollection.Url, "/"), "/")
 	return []string{urlParts[len(urlParts)-1]}
 }
 
-func productNameHandler(document *goquery.Document, urlCollection ninjacrawler.UrlCollection) string {
+func productNameHandler(app ninjacrawler.Crawler, document *goquery.Document, urlCollection ninjacrawler.UrlCollection) string {
 	return strings.Trim(document.Find("h2.ProductInfo_Head_Main_ProductName").Text(), " \n")
 }
 
-func getUrlHandler(document *goquery.Document, urlCollection ninjacrawler.UrlCollection) string {
+func getUrlHandler(app ninjacrawler.Crawler, document *goquery.Document, urlCollection ninjacrawler.UrlCollection) string {
 	return urlCollection.Url
 }

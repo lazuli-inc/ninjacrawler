@@ -3,7 +3,7 @@ package markt
 import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/lazuli-inc/ninjacrawler"
-	"github.com/lazuli-inc/ninjacrawler/examples/constant"
+	"github.com/lazuli-inc/ninjacrawler/examples/basic/constant"
 	"github.com/playwright-community/playwright-go"
 	"time"
 )

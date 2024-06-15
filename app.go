@@ -2,12 +2,10 @@ package ninjacrawler
 
 import (
 	"github.com/playwright-community/playwright-go"
-	"sync"
+	"go.mongodb.org/mongo-driver/mongo"
 	"time"
 )
 
-var Once sync.Once
-var app *Crawler
 var startTime time.Time
 
 const (
@@ -15,7 +13,7 @@ const (
 )
 
 type Crawler struct {
-	*client
+	*mongo.Client
 	Config                *configService
 	Name                  string
 	Url                   string
@@ -29,78 +27,73 @@ type Crawler struct {
 }
 
 func NewCrawler(name, url string, engines ...Engine) *Crawler {
-	startTime = time.Now()
-	logger := newDefaultLogger(name)
-	defer func() {
-		if r := recover(); r != nil {
-			logger.Info("Recovered in NewCrawler: %v\n", r)
-		}
-	}()
-	logger.Info("Program started! 🚀")
 
 	defaultEngine := getDefaultEngine()
 	if len(engines) > 0 {
 		eng := engines[0]
 		overrideEngineDefaults(&defaultEngine, &eng)
 	}
+	// Handle other engine overrides as needed
+	config := newConfig()
 
-	app = &Crawler{
+	crawler := &Crawler{
 		Name:       name,
 		Url:        url,
-		BaseUrl:    getBaseUrl(url),
-		collection: baseCollection, // use baseCollection directly
+		collection: baseCollection,
 		engine:     &defaultEngine,
-		Logger:     logger,
-		Config:     newConfig(),
+		Config:     config,
 	}
 
+	logger := newDefaultLogger(crawler, name)
+	logger.Info("Crawler Started! 🚀")
+	crawler.Logger = logger
+	crawler.Client = crawler.mustGetClient()
+	crawler.BaseUrl = crawler.getBaseUrl(url)
+	return crawler
+}
+
+func (app *Crawler) Start() {
+	defer func() {
+		if r := recover(); r != nil {
+			app.Logger.Error("Recovered in Start: %v", r)
+		}
+	}()
+	app.newSite()
+	pw, err := GetPlaywright()
+	if err != nil {
+		app.Logger.Fatal("failed to initialize playwright: %v\n", err)
+		return // exit if playwright initialization fails
+	}
+	app.pw = pw
+}
+
+func (app *Crawler) Stop() {
+	defer func() {
+		if r := recover(); r != nil {
+			app.Logger.Error("Recovered in Stop: %v", r)
+		}
+	}()
+	if app.pw != nil {
+		app.pw.Stop()
+	}
+	if app.Client != nil {
+		app.closeClient()
+	}
+
+	duration := time.Since(startTime)
+	app.Logger.Info("Crawler stopped in ⚡ %v", duration)
+}
+
+func (app *Crawler) Collection(collection string) *Crawler {
+	app.collection = collection
 	return app
 }
 
-func (a *Crawler) Start() {
-	defer func() {
-		if r := recover(); r != nil {
-			a.Logger.Error("Recovered in Start: %v", r)
-		}
-	}()
-	client := connectDB()
-	client.newSite()
-	pw, err := GetPlaywright()
-	if err != nil {
-		a.Logger.Fatal("failed to initialize playwright: %v\n", err)
-		return // exit if playwright initialization fails
-	}
-
-	a.client = client
-	a.pw = pw
+func (app *Crawler) GetCollection() string {
+	return app.collection
 }
 
-func (a *Crawler) Stop() {
-	defer func() {
-		if r := recover(); r != nil {
-			a.Logger.Error("Recovered in Stop: %v", r)
-		}
-	}()
-	if a.pw != nil {
-		a.pw.Stop()
-	}
-	if a.client != nil {
-		a.client.close()
-	}
-	duration := time.Since(startTime)
-	a.Logger.Info("Program stopped in ⚡ %v", duration)
-}
-
-func (a *Crawler) Collection(collection string) *Engine {
-	a.collection = collection
-	return a.engine
-}
-
-func (a *Crawler) GetCollection() string {
-	return a.collection
-}
-
-func (a *Crawler) GetBaseCollection() string {
+func (app *Crawler) GetBaseCollection() string {
 	return baseCollection
 }
 
@@ -109,16 +102,15 @@ type Handler struct {
 	ProductHandler func(c *Crawler)
 }
 
-func (a *Crawler) Handle(handler Handler) {
-	defer a.Stop() // Ensure Stop is called after handlers
-	// Start the app
+func (app *Crawler) Handle(handler Handler) {
+	defer app.Stop() // Ensure Stop is called after handlers
 	app.Start()
 
 	if handler.UrlHandler != nil {
-		handler.UrlHandler(a)
+		handler.UrlHandler(app)
 	}
 	if handler.ProductHandler != nil {
-		handler.ProductHandler(a)
+		handler.ProductHandler(app)
 	}
 }
 

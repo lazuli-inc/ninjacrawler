@@ -11,21 +11,21 @@ import (
 	"time"
 )
 
-func isLocalEnv() bool {
-	return app.Config.GetString("APP_ENV") == "local"
+func isLocalEnv(env string) bool {
+	return env == "local"
 }
 
 // processDocument processes the document based on the urlSelector type
-func processDocument(doc *goquery.Document, selector UrlSelector, collection UrlCollection) []UrlCollection {
+func (app *Crawler) processDocument(doc *goquery.Document, selector UrlSelector, collection UrlCollection) []UrlCollection {
 	if selector.SingleResult {
 		// Process a single result
-		return processSingleResult(doc, selector, collection)
+		return app.processSingleResult(doc, selector, collection)
 	} else {
 		// Process multiple results
 		var items []UrlCollection
 
 		doc.Find(selector.Selector).Each(func(i int, selection *goquery.Selection) {
-			item := processSelection(selection, selector, collection)
+			item := app.processSelection(selection, selector, collection)
 			items = append(items, item...)
 		})
 
@@ -34,13 +34,13 @@ func processDocument(doc *goquery.Document, selector UrlSelector, collection Url
 }
 
 // processSingleResult processes a single result based on the selector
-func processSingleResult(doc *goquery.Document, selector UrlSelector, urlCollection UrlCollection) []UrlCollection {
+func (app *Crawler) processSingleResult(doc *goquery.Document, selector UrlSelector, urlCollection UrlCollection) []UrlCollection {
 	selection := doc.Find(selector.Selector).First()
-	return processSelection(selection, selector, urlCollection)
+	return app.processSelection(selection, selector, urlCollection)
 }
 
 // processSelection processes each selection and extracts attribute values
-func processSelection(selection *goquery.Selection, selector UrlSelector, collection UrlCollection) []UrlCollection {
+func (app *Crawler) processSelection(selection *goquery.Selection, selector UrlSelector, collection UrlCollection) []UrlCollection {
 	var items []UrlCollection
 
 	selection.Find(selector.FindSelector).Each(func(j int, s *goquery.Selection) {
@@ -48,7 +48,7 @@ func processSelection(selection *goquery.Selection, selector UrlSelector, collec
 		if !ok {
 			app.Logger.Error("Attribute not found. %v", selector.Attr)
 		} else {
-			fullUrl := GetFullUrl(attrValue)
+			fullUrl := app.GetFullUrl(attrValue)
 			if selector.Handler != nil {
 				url, meta := selector.Handler(collection, fullUrl, s)
 				if url != "" {
@@ -71,7 +71,7 @@ func processSelection(selection *goquery.Selection, selector UrlSelector, collec
 	return items
 }
 
-func getItemsFromAttrOrText(selection *goquery.Selection, selector *CategorySelector) []string {
+func (app *Crawler) getItemsFromAttrOrText(selection *goquery.Selection, selector *CategorySelector) []string {
 	var items []string
 	selection.Each(func(i int, s *goquery.Selection) {
 		var value string
@@ -89,7 +89,7 @@ func getItemsFromAttrOrText(selection *goquery.Selection, selector *CategorySele
 	return items
 }
 
-func GetPageDom(page playwright.Page) (*goquery.Document, error) {
+func (app *Crawler) GetPageDom(page playwright.Page) (*goquery.Document, error) {
 	html, err := page.Content()
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func GetPageDom(page playwright.Page) (*goquery.Document, error) {
 	}
 	return document, nil
 }
-func writePageContentToFile(page playwright.Page, msg string) error {
+func (app *Crawler) writePageContentToFile(page playwright.Page, msg string) error {
 	content, err := page.Content()
 	if err != nil {
 		content = "No Page Content Found \n" + strings.TrimSpace(msg)
@@ -146,7 +146,7 @@ func generateCsvFileName(siteName string) string {
 	return productDetailsFileName
 }
 
-func GetFullUrl(url string) string {
+func (app *Crawler) GetFullUrl(url string) string {
 	fullUrl := ""
 	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
 		// If href is already a full URL, don't concatenate with baseUrl
@@ -158,7 +158,7 @@ func GetFullUrl(url string) string {
 }
 
 // shouldBlockResource checks if a resource should be blocked based on its type and URL.
-func shouldBlockResource(resourceType string, url string) bool {
+func (app *Crawler) shouldBlockResource(resourceType string, url string) bool {
 	if resourceType == "image" || resourceType == "font" {
 		return true
 	}
@@ -171,7 +171,7 @@ func shouldBlockResource(resourceType string, url string) bool {
 
 	return false
 }
-func getBaseUrl(urlString string) string {
+func (app *Crawler) getBaseUrl(urlString string) string {
 	parsedURL, err := url.Parse(urlString)
 	if err != nil {
 		app.Logger.Error("failed to parse Url:", "Error", err)

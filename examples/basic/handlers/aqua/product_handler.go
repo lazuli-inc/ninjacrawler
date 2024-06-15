@@ -3,7 +3,7 @@ package aqua
 import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/lazuli-inc/ninjacrawler"
-	"github.com/lazuli-inc/ninjacrawler/examples/constant"
+	"github.com/lazuli-inc/ninjacrawler/examples/basic/constant"
 )
 
 func ProductHandler(crawler *ninjacrawler.Crawler) {

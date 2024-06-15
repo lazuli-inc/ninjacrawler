@@ -2,9 +2,9 @@ package main
 
 import (
 	"github.com/lazuli-inc/ninjacrawler"
-	"github.com/lazuli-inc/ninjacrawler/examples/handlers/aqua"
-	"github.com/lazuli-inc/ninjacrawler/examples/handlers/markt"
-	"github.com/lazuli-inc/ninjacrawler/examples/handlers/sandvik"
+	aqua2 "github.com/lazuli-inc/ninjacrawler/examples/basic/handlers/aqua"
+	markt2 "github.com/lazuli-inc/ninjacrawler/examples/basic/handlers/markt"
+	sandvik2 "github.com/lazuli-inc/ninjacrawler/examples/basic/handlers/sandvik"
 )
 
 func main() {
@@ -17,8 +17,8 @@ func main() {
 		BlockResources:  true,
 		BoostCrawling:   true,
 	}).Handle(ninjacrawler.Handler{
-		UrlHandler:     aqua.UrlHandler,
-		ProductHandler: aqua.ProductHandler,
+		UrlHandler:     aqua2.UrlHandler,
+		ProductHandler: aqua2.ProductHandler,
 	})
 	// medium complex
 	ninjacrawler.NewCrawler("markt", "https://markt-mall.jp", ninjacrawler.Engine{
@@ -28,8 +28,8 @@ func main() {
 		IsDynamic:       true,
 		BlockResources:  true,
 	}).Handle(ninjacrawler.Handler{
-		UrlHandler:     markt.UrlHandler,
-		ProductHandler: markt.ProductHandler,
+		UrlHandler:     markt2.UrlHandler,
+		ProductHandler: markt2.ProductHandler,
 	})
 	// medium complex
 	ninjacrawler.NewCrawler("sandvik", "https://www.sandvik.coromant.com/ja-jp/tools", ninjacrawler.Engine{
@@ -41,7 +41,7 @@ func main() {
 			SleepAfterAction: 7, // 7 seconds sleep
 		},
 	}).Handle(ninjacrawler.Handler{
-		UrlHandler:     sandvik.UrlHandler,
-		ProductHandler: sandvik.ProductHandler,
+		UrlHandler:     sandvik2.UrlHandler,
+		ProductHandler: sandvik2.ProductHandler,
 	})
 }

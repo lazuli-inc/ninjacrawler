@@ -5,7 +5,7 @@ import (
 	"reflect"
 )
 
-func handleProductDetail(document *goquery.Document, urlCollection UrlCollection) *ProductDetail {
+func (app Crawler) handleProductDetail(document *goquery.Document, urlCollection UrlCollection) *ProductDetail {
 	// Create a new ProductDetail struct
 	productDetail := &ProductDetail{}
 
@@ -26,17 +26,17 @@ func handleProductDetail(document *goquery.Document, urlCollection UrlCollection
 		switch v := fieldValue.Interface().(type) {
 		case string:
 			// String value, do nothing
-		case func(*goquery.Document, UrlCollection) []AttributeItem:
+		case func(Crawler, *goquery.Document, UrlCollection) []AttributeItem:
 			// Call the function and set the result to the corresponding field in ProductDetail
-			result := fieldValue.Interface().(func(*goquery.Document, UrlCollection) []AttributeItem)(document, urlCollection)
+			result := fieldValue.Interface().(func(Crawler, *goquery.Document, UrlCollection) []AttributeItem)(app, document, urlCollection)
 			reflect.ValueOf(productDetail).Elem().FieldByName(fieldName).Set(reflect.ValueOf(result))
-		case func(*goquery.Document, UrlCollection) []string:
+		case func(Crawler, *goquery.Document, UrlCollection) []string:
 			// Call the function and set the result to the corresponding field in ProductDetail
-			result := fieldValue.Interface().(func(*goquery.Document, UrlCollection) []string)(document, urlCollection)
+			result := fieldValue.Interface().(func(Crawler, *goquery.Document, UrlCollection) []string)(app, document, urlCollection)
 			reflect.ValueOf(productDetail).Elem().FieldByName(fieldName).Set(reflect.ValueOf(result))
-		case func(*goquery.Document, UrlCollection) string:
+		case func(Crawler, *goquery.Document, UrlCollection) string:
 			// Call the function and set the result to the corresponding field in ProductDetail
-			result := fieldValue.Interface().(func(*goquery.Document, UrlCollection) string)(document, urlCollection)
+			result := fieldValue.Interface().(func(Crawler, *goquery.Document, UrlCollection) string)(app, document, urlCollection)
 			reflect.ValueOf(productDetail).Elem().FieldByName(fieldName).SetString(result)
 		case *SingleSelector:
 			// Handle SingleSelector type

@@ -12,7 +12,7 @@ import (
 )
 
 // uploadToBucket uploads a file to a Google Cloud Storage bucket.
-func uploadToBucket(sourceFileName, destinationFileName string) {
+func uploadToBucket(app *Crawler, sourceFileName, destinationFileName string) {
 	startTime := time.Now()
 	bucketName := "gen_crawled_data_venturas_asia-northeast1"
 	destinationFileName = fmt.Sprintf("maker/%s/%s", app.Name, destinationFileName)

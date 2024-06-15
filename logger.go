@@ -21,10 +21,11 @@ type logger interface {
 // defaultLogger is a default implementation of the logger interface using the standard log package.
 type defaultLogger struct {
 	logger *log.Logger
+	app    *Crawler
 }
 
 // newDefaultLogger creates a new instance of defaultLogger.
-func newDefaultLogger(siteName string) *defaultLogger {
+func newDefaultLogger(app *Crawler, siteName string) *defaultLogger {
 	// Open a log file in append mode, create if it doesn't exist.
 
 	currentDate := time.Now().Format("2006-01-02")
@@ -46,12 +47,13 @@ func newDefaultLogger(siteName string) *defaultLogger {
 	multiWriter := io.MultiWriter(file, os.Stdout)
 
 	return &defaultLogger{
-		logger: log.New(multiWriter, "⏱️ ", log.LstdFlags),
+		logger: log.New(multiWriter, "【"+app.Name+"】", log.LstdFlags),
+		app:    app,
 	}
 }
 
 func (l *defaultLogger) Info(format string, args ...interface{}) {
-	l.logger.Printf("📢 INFO: "+format, args...)
+	l.logger.Printf("📢 "+format, args...)
 }
 
 func (l *defaultLogger) Error(format string, args ...interface{}) {
@@ -68,7 +70,7 @@ func (l *defaultLogger) Printf(format string, args ...interface{}) {
 
 func (l *defaultLogger) Html(page playwright.Page, msg string) {
 	l.Error(msg)
-	err := writePageContentToFile(page, msg)
+	err := l.app.writePageContentToFile(page, msg)
 	if err != nil {
 		l.logger.Printf("⚛️ HTML: %v", err)
 	}

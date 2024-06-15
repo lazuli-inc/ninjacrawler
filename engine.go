@@ -58,7 +58,8 @@ func (e *Engine) EnableBoostCrawling() *Engine {
 	return e
 }
 func (e *Engine) SetCookieConsent(action *CookieAction) *Engine {
-	e.CookieConsent = action
+	e.BoostCrawling = true
+	e.ProxyServers = e.getProxyList()
 	return e
 }
 

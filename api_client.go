@@ -12,7 +12,7 @@ const (
 	contentType = "application/json"
 )
 
-func submitProductData(productData *ProductDetail) error {
+func (app *Crawler) submitProductData(productData *ProductDetail) error {
 	jsonPayload, err := json.Marshal(productData)
 	if err != nil {
 		return fmt.Errorf("json conversion error: %w", err)

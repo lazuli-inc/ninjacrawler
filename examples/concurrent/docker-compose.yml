@@ -1,0 +1,24 @@
+services:
+  crawler:
+    build: .
+    environment:
+      - PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
+    depends_on:
+      - mongo
+    volumes:
+      - .:/app  # Sync current directory with /app in the container
+      - /app/go/pkg/mod  # Cache Go modules for faster builds
+      - /app/node_modules  # Cache Node.js modules for faster builds
+
+  mongo:
+    image: mongo:6.0
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=lazuli
+      - MONGO_INITDB_ROOT_PASSWORD=x1RWo6cqFtHiaAHce5HB
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:

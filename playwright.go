@@ -10,10 +10,6 @@ import (
 // GetPlaywright initializes and runs the Playwright framework.
 // It returns a Playwright instance if successful, otherwise returns an error.
 func GetPlaywright() (*playwright.Playwright, error) {
-	err := playwright.Install()
-	if err != nil {
-		return nil, err
-	}
 	pw, err := playwright.Run()
 	if err != nil {
 		return nil, err
@@ -24,13 +20,13 @@ func GetPlaywright() (*playwright.Playwright, error) {
 // GetBrowserPage launches a browser instance and creates a new page using the Playwright framework.
 // It supports Chromium, Firefox, and WebKit browsers, and can configure Proxy settings if provided.
 // It returns the browser and page instances, or an error if the operation fails.
-func GetBrowserPage(pw *playwright.Playwright, browserType string, proxy Proxy) (playwright.Browser, playwright.Page, error) {
+func (app *Crawler) GetBrowserPage(pw *playwright.Playwright, browserType string, proxy Proxy) (playwright.Browser, playwright.Page, error) {
 	var browser playwright.Browser
 	var err error
 
 	var browserTypeLaunchOptions playwright.BrowserTypeLaunchOptions
-	browserTypeLaunchOptions.Headless = playwright.Bool(!isLocalEnv())
-	browserTypeLaunchOptions.Devtools = playwright.Bool(isLocalEnv())
+	browserTypeLaunchOptions.Headless = playwright.Bool(!isLocalEnv(app.Config.GetString("APP_ENV")))
+	browserTypeLaunchOptions.Devtools = playwright.Bool(isLocalEnv(app.Config.GetString("APP_ENV")))
 
 	if len(app.engine.ProxyServers) > 0 {
 		// Set Proxy options
@@ -70,7 +66,7 @@ func GetBrowserPage(pw *playwright.Playwright, browserType string, proxy Proxy) 
 			url := req.URL()
 
 			// Check if the resource should be blocked based on resource type or URL
-			if shouldBlockResource(resourceType, url) {
+			if app.shouldBlockResource(resourceType, url) {
 				route.Abort()
 			} else {
 				route.Continue()
@@ -86,7 +82,7 @@ func GetBrowserPage(pw *playwright.Playwright, browserType string, proxy Proxy) 
 
 // HandleCookieConsent attempts to fill form fields and click the specified cookie consent button on a cookie consent dialog.
 // It logs an error if the button cannot be found or clicked.
-func HandleCookieConsent(page playwright.Page) error {
+func (app *Crawler) HandleCookieConsent(page playwright.Page) error {
 	action := app.engine.CookieConsent
 	if action == nil {
 		return nil
@@ -130,7 +126,7 @@ func HandleCookieConsent(page playwright.Page) error {
 // NavigateToURL navigates to a specified URL using the given Playwright page.
 // It waits until the page is fully loaded, handles cookie consent, and returns a goquery document representing the DOM.
 // If navigation or handling consent fails, it logs the page content to a file and returns an error.
-func NavigateToURL(page playwright.Page, url string) (*goquery.Document, error) {
+func (app *Crawler) NavigateToURL(page playwright.Page, url string) (*goquery.Document, error) {
 	waitUntil := playwright.WaitUntilStateDomcontentloaded
 	if app.engine.IsDynamic {
 		waitUntil = playwright.WaitUntilStateNetworkidle
@@ -145,10 +141,10 @@ func NavigateToURL(page playwright.Page, url string) (*goquery.Document, error) 
 	}
 
 	// Handle cookie consent
-	err = HandleCookieConsent(page)
+	err = app.HandleCookieConsent(page)
 	if err != nil {
 		app.Logger.Html(page, err.Error())
 		return nil, err
 	}
-	return GetPageDom(page)
+	return app.GetPageDom(page)
 }

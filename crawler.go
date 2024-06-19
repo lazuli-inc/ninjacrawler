@@ -2,8 +2,6 @@ package ninjacrawler
 
 import (
 	"context"
-	"github.com/PuerkitoBio/goquery"
-	"github.com/playwright-community/playwright-go"
 	"sync"
 	"sync/atomic"
 )
@@ -32,6 +30,7 @@ func (app *Crawler) crawlWorker(ctx context.Context, dbCollection string, urlCha
 			}
 
 			if isLocalEnv && atomic.LoadInt32(counter) >= int32(app.engine.DevCrawlLimit) {
+				//app.Logger.Info("Dev Crawl limit reached!")
 				return
 			}
 
@@ -51,22 +50,28 @@ func (app *Crawler) crawlWorker(ctx context.Context, dbCollection string, urlCha
 				continue
 			}
 
+			crawlerCtx := CrawlerContext{
+				App:           app,
+				Document:      doc,
+				UrlCollection: urlCollection,
+				Page:          page,
+			}
+
 			var results interface{}
 			switch v := processor.(type) {
-			case func(*goquery.Document, *UrlCollection, playwright.Page) []UrlCollection:
-				results = v(doc, &urlCollection, page)
+			case func(CrawlerContext) []UrlCollection:
+				results = v(crawlerCtx)
 
 			case UrlSelector:
 				results = app.processDocument(doc, v, urlCollection)
 
 			case ProductDetailSelector:
-				results = app.handleProductDetail(doc, urlCollection)
+				results = crawlerCtx.handleProductDetail()
 
 			default:
 				app.Logger.Fatal("Unsupported processor type: %T", processor)
 			}
 
-			// Create a struct to hold both results and the UrlCollection
 			crawlResult := CrawlResult{
 				Results:       results,
 				UrlCollection: urlCollection,

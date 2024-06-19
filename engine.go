@@ -1,6 +1,8 @@
 package ninjacrawler
 
-import "time"
+import (
+	"time"
+)
 
 type Proxy struct {
 	Server   string
@@ -17,6 +19,7 @@ type Engine struct {
 	BoostCrawling   bool
 	ProxyServers    []Proxy
 	CookieConsent   *CookieAction
+	Timeout         time.Duration
 }
 type FormInput struct {
 	Key string
@@ -58,8 +61,11 @@ func (e *Engine) EnableBoostCrawling() *Engine {
 	return e
 }
 func (e *Engine) SetCookieConsent(action *CookieAction) *Engine {
-	e.BoostCrawling = true
-	e.ProxyServers = e.getProxyList()
+	e.CookieConsent = action
+	return e
+}
+func (e *Engine) SetTimeout(timeout time.Duration) *Engine {
+	e.Timeout = timeout * time.Second
 	return e
 }
 

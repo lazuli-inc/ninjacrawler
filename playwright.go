@@ -134,6 +134,7 @@ func (app *Crawler) NavigateToURL(page playwright.Page, url string) (*goquery.Do
 
 	_, err := page.Goto(url, playwright.PageGotoOptions{
 		WaitUntil: waitUntil,
+		Timeout:   playwright.Float(float64(app.engine.Timeout)),
 	})
 	if err != nil {
 		app.Logger.Html(page, err.Error())

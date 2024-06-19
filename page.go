@@ -2,53 +2,48 @@ package ninjacrawler
 
 import (
 	"github.com/PuerkitoBio/goquery"
+	"github.com/playwright-community/playwright-go"
 	"reflect"
 )
 
-func (app Crawler) handleProductDetail(document *goquery.Document, urlCollection UrlCollection) *ProductDetail {
-	// Create a new ProductDetail struct
-	productDetail := &ProductDetail{}
+type CrawlerContext struct {
+	App           *Crawler
+	Document      *goquery.Document
+	UrlCollection UrlCollection
+	Page          playwright.Page
+}
 
-	// Get the reflect.Value of the ProductDetailSelector struct
+func (ctx *CrawlerContext) handleProductDetail() *ProductDetail {
+	app := ctx.App
+	document := ctx.Document
+
+	productDetail := &ProductDetail{}
 	productDetailSelector := reflect.ValueOf(app.ProductDetailSelector)
 
-	// Iterate over the fields of ProductDetailSelector
 	for i := 0; i < productDetailSelector.NumField(); i++ {
-		// Get the field value and type
 		fieldValue := productDetailSelector.Field(i)
 		fieldType := productDetailSelector.Type().Field(i)
-
-		// Get field name
 		fieldName := fieldType.Name
-
-		// Get field value type
 
 		switch v := fieldValue.Interface().(type) {
 		case string:
-			// String value, do nothing
-		case func(Crawler, *goquery.Document, UrlCollection) []AttributeItem:
-			// Call the function and set the result to the corresponding field in ProductDetail
-			result := fieldValue.Interface().(func(Crawler, *goquery.Document, UrlCollection) []AttributeItem)(app, document, urlCollection)
+		case func(CrawlerContext) []AttributeItem:
+			result := fieldValue.Interface().(func(CrawlerContext) []AttributeItem)(*ctx)
 			reflect.ValueOf(productDetail).Elem().FieldByName(fieldName).Set(reflect.ValueOf(result))
-		case func(Crawler, *goquery.Document, UrlCollection) []string:
-			// Call the function and set the result to the corresponding field in ProductDetail
-			result := fieldValue.Interface().(func(Crawler, *goquery.Document, UrlCollection) []string)(app, document, urlCollection)
+		case func(CrawlerContext) []string:
+			result := fieldValue.Interface().(func(CrawlerContext) []string)(*ctx)
 			reflect.ValueOf(productDetail).Elem().FieldByName(fieldName).Set(reflect.ValueOf(result))
-		case func(Crawler, *goquery.Document, UrlCollection) string:
-			// Call the function and set the result to the corresponding field in ProductDetail
-			result := fieldValue.Interface().(func(Crawler, *goquery.Document, UrlCollection) string)(app, document, urlCollection)
+		case func(CrawlerContext) string:
+			result := fieldValue.Interface().(func(CrawlerContext) string)(*ctx)
 			reflect.ValueOf(productDetail).Elem().FieldByName(fieldName).SetString(result)
 		case *SingleSelector:
-			// Handle SingleSelector type
 			selector := fieldValue.Interface().(*SingleSelector)
 			result := handleSingleSelector(document, selector)
 			reflect.ValueOf(productDetail).Elem().FieldByName(fieldName).SetString(result.(string))
 		case *MultiSelectors:
-			// Handle MultiSelectors type
 			selectors := fieldValue.Interface().(*MultiSelectors)
 			result := handleMultiSelectors(document, selectors)
 
-			// Convert result from []AttributeItem to []string
 			var stringSlice []string
 			for _, v := range result {
 				stringSlice = append(stringSlice, v.(string))
@@ -56,7 +51,7 @@ func (app Crawler) handleProductDetail(document *goquery.Document, urlCollection
 
 			reflect.ValueOf(productDetail).Elem().FieldByName(fieldName).Set(reflect.ValueOf(stringSlice))
 		default:
-			app.Logger.Error("Invalid %s Handler/Selector/Value: %T", fieldName, v)
+			app.Logger.Error("Invalid %s CrawlerContext: %T", fieldName, v)
 		}
 	}
 

@@ -103,8 +103,9 @@ func (app *Crawler) GetPageDom(page playwright.Page) (*goquery.Document, error) 
 func (app *Crawler) writePageContentToFile(page playwright.Page, msg string) error {
 	content, err := page.Content()
 	if err != nil {
-		content = "No Page Content Found \n" + strings.TrimSpace(msg)
+		content = "No Page Content Found"
 	}
+	content = strings.TrimSpace(msg) + "\n" + content
 	content = fmt.Sprintf("<!-- Time: %v \n Page Url: %s -->\n%s", time.Now(), page.URL(), content)
 	filename := generateFilename(page.URL())
 	directory := filepath.Join("storage", "logs", app.Name, "html")

@@ -28,12 +28,7 @@ RUN PWGO_VER=$(grep -oE "playwright-go v\S+" /app/go.mod | sed 's/playwright-go 
     && go install github.com/playwright-community/playwright-go/cmd/playwright@${PWGO_VER}
 
 # Install dependencies and all browsers (or specify one)
-RUN apt-get install -y ca-certificates tzdata curl gnupg && \
-    curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && \
-    apt-get install -y nodejs && \
-    npm install -g playwright && \
-    npx playwright install --with-deps && \
-    rm -rf /var/lib/apt/lists/*
+RUN go run github.com/playwright-community/playwright-go/cmd/playwright@latest install --with-deps
 
 
 

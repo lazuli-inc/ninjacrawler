@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/playwright-community/playwright-go"
-	"time"
 )
 
 // GetPlaywright initializes and runs the Playwright framework.
@@ -115,7 +114,7 @@ func (app *Crawler) HandleCookieConsent(page playwright.Page) error {
 				return fmt.Errorf("failed to click cookie consent button: %w", err)
 			}
 
-			time.Sleep(time.Second * action.SleepAfterAction) // this will be removed
+			page.WaitForSelector(action.MustHaveSelectorAfterAction)
 
 		}
 	}

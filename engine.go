@@ -26,9 +26,9 @@ type FormInput struct {
 	Val string
 }
 type CookieAction struct {
-	ButtonText       string
-	SleepAfterAction time.Duration
-	Fields           []FormInput
+	ButtonText                  string
+	MustHaveSelectorAfterAction string
+	Fields                      []FormInput
 }
 
 func (e *Engine) SetBrowserType(browserType string) *Engine {

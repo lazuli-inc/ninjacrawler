@@ -1,7 +1,6 @@
 package markt
 
 import (
-	"github.com/PuerkitoBio/goquery"
 	"github.com/lazuli-inc/ninjacrawler"
 	"github.com/lazuli-inc/ninjacrawler/examples/concurrent/constant"
 	"github.com/playwright-community/playwright-go"
@@ -10,26 +9,22 @@ import (
 
 func UrlHandler(crawler *ninjacrawler.Crawler) {
 	crawler.Collection(constant.Categories).CrawlUrls(crawler.GetBaseCollection(), ninjacrawler.UrlSelector{
-		Selector:       ".l-category-button-list__in",
-		SingleResult:   false,
-		FindSelector:   "a.c-category-button",
-		Attr:           "href",
-		ToCollection:   constant.Categories,
-		FromCollection: crawler.GetBaseCollection(),
+		Selector:     ".l-category-button-list__in",
+		SingleResult: false,
+		FindSelector: "a.c-category-button",
+		Attr:         "href",
 	})
-	crawler.Collection(constant.Products).CrawlUrls(constant.Categories, func(document *goquery.Document, collection *ninjacrawler.UrlCollection, page playwright.Page) []ninjacrawler.UrlCollection {
-		return handleProducts(crawler, document, collection, page)
-	})
+	crawler.Collection(constant.Products).CrawlUrls(constant.Categories, handleProducts)
 }
 
-func handleProducts(crawler *ninjacrawler.Crawler, document *goquery.Document, collection *ninjacrawler.UrlCollection, page playwright.Page) []ninjacrawler.UrlCollection {
+func handleProducts(ctx ninjacrawler.CrawlerContext) []ninjacrawler.UrlCollection {
 	var urls []ninjacrawler.UrlCollection
 	productLinkSelector := "a.c-text-link.u-color-text--link.c-text-link--underline"
-	clickAndWaitButton(crawler, ".u-hidden-sp li button", page)
+	clickAndWaitButton(ctx.App, ".u-hidden-sp li button", ctx.Page)
 
-	items, err := page.Locator("ul.p-card-list-no-scroll li.p-product-card.p-product-card--large").All()
+	items, err := ctx.Page.Locator("ul.p-card-list-no-scroll li.p-product-card.p-product-card--large").All()
 	if err != nil {
-		crawler.Logger.Info("Error fetching items:", err)
+		ctx.App.Logger.Info("Error fetching items:", err)
 		return urls
 	}
 
@@ -37,54 +32,54 @@ func handleProducts(crawler *ninjacrawler.Crawler, document *goquery.Document, c
 		//time.Sleep(time.Second)
 		err := item.Click()
 		if err != nil {
-			crawler.Logger.Error("Failed to click on Product Card: %v", err)
+			ctx.App.Logger.Error("Failed to click on Product Card: %v", err)
 			continue
 		}
 
 		// Wait for the modal to open and the link to be available
-		_, err = page.WaitForSelector(productLinkSelector)
+		_, err = ctx.Page.WaitForSelector(productLinkSelector)
 		if err != nil {
-			crawler.Logger.Html(page, "WaitForSelector Open Modal Timeout")
+			ctx.App.Logger.Html(ctx.Page, "WaitForSelector Open Modal Timeout")
 			continue
 		}
 
-		doc, err := crawler.GetPageDom(page)
+		doc, err := ctx.App.GetPageDom(ctx.Page)
 		if err != nil {
-			crawler.Logger.Error("Error getting page DOM:", err)
+			ctx.App.Logger.Error("Error getting page DOM:", err)
 			continue
 		}
 
 		productLink, exist := doc.Find(productLinkSelector).First().Attr("href")
 
-		fullUrl := crawler.GetFullUrl(productLink)
+		fullUrl := ctx.App.GetFullUrl(productLink)
 		if !exist {
-			crawler.Logger.Error("Failed to find product link")
+			ctx.App.Logger.Error("Failed to find product link")
 		} else {
-			crawler.Logger.Info("Saving Product Link: %s", fullUrl)
+			ctx.App.Logger.Info("Saving Product Link: %s", fullUrl)
 			urls = append(urls, ninjacrawler.UrlCollection{Url: fullUrl})
 		}
 
 		// Close the modal
 
-		_, err = page.WaitForSelector("#__next > div.l-background__wrap > div.l-background__in > div > button")
+		_, err = ctx.Page.WaitForSelector("#__next > div.l-background__wrap > div.l-background__in > div > button")
 		if err != nil {
-			crawler.Logger.Error("Timeout to Close Modal")
+			ctx.App.Logger.Error("Timeout to Close Modal")
 		}
-		closeModal := page.Locator("#__next > div.l-background__wrap > div.l-background__in > div > button")
+		closeModal := ctx.Page.Locator("#__next > div.l-background__wrap > div.l-background__in > div > button")
 		if closeModal != nil {
 			err = closeModal.Click(playwright.LocatorClickOptions{Timeout: playwright.Float(10000)})
 			if err != nil {
-				crawler.Logger.Html(page, "Failed to close modal")
+				ctx.App.Logger.Html(ctx.Page, "Failed to close modal")
 			}
 
 			time.Sleep(100 * time.Millisecond)
 		} else {
-			crawler.Logger.Error("Modal close button not found.")
+			ctx.App.Logger.Error("Modal close button not found.")
 		}
 
 		// Add a delay after every 50 items
 		if (i+1)%50 == 0 {
-			crawler.Logger.Info("Sleeping for 5 seconds...")
+			ctx.App.Logger.Info("Sleeping for 5 seconds...")
 			time.Sleep(5 * time.Second)
 		}
 

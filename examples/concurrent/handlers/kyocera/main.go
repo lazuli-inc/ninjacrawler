@@ -9,8 +9,8 @@ func Crawler() ninjacrawler.CrawlerConfig {
 		Engine: ninjacrawler.Engine{
 			//BoostCrawling:  true,
 			BlockResources:  true,
-			DevCrawlLimit:   2,
-			ConcurrentLimit: 2,
+			DevCrawlLimit:   1,
+			ConcurrentLimit: 1,
 			BlockedURLs:     []string{"syncsearch.jp"},
 		},
 		Handler: ninjacrawler.Handler{

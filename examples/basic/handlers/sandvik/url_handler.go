@@ -2,7 +2,7 @@ package sandvik
 
 import (
 	"github.com/lazuli-inc/ninjacrawler"
-	"github.com/lazuli-inc/ninjacrawler/examples/basic/constant"
+	"github.com/lazuli-inc/ninjacrawler/examples/concurrent/constant"
 )
 
 func UrlHandler(crawler *ninjacrawler.Crawler) {

@@ -2,7 +2,7 @@ package aqua
 
 import (
 	"github.com/lazuli-inc/ninjacrawler"
-	"github.com/lazuli-inc/ninjacrawler/examples/basic/constant"
+	"github.com/lazuli-inc/ninjacrawler/examples/concurrent/constant"
 )
 
 func UrlHandler(crawler *ninjacrawler.Crawler) {
@@ -19,8 +19,6 @@ func UrlHandler(crawler *ninjacrawler.Crawler) {
 		Attr:         "href",
 	}
 	crawler.Collection(constant.Categories).CrawlUrls(crawler.GetBaseCollection(), categorySelector)
-	crawler.Collection(constant.Products).SetCookieConsent(&ninjacrawler.CookieAction{
-		ButtonText: "Accept Cookie",
-	}).CrawlUrls(constant.Categories, productSelector)
+	crawler.Collection(constant.Products).CrawlUrls(constant.Categories, productSelector)
 
 }

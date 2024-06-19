@@ -19,16 +19,16 @@ func ProductHandler(crawler *ninjacrawler.Crawler) {
 				{Query: ".details .intro .image img", Attr: "src"},
 			},
 		},
-		ProductCodes:     func(document *goquery.Document, urlCollection ninjacrawler.UrlCollection) []string { return []string{} },
+		ProductCodes:     func(ctx ninjacrawler.CrawlerContext) []string { return []string{} },
 		Maker:            "",
 		Brand:            "",
 		ProductName:      productNameHandler,
 		Category:         getProductCategory,
 		Description:      getProductDescription,
-		Reviews:          func(document *goquery.Document, urlCollection ninjacrawler.UrlCollection) []string { return []string{} },
-		ItemTypes:        func(document *goquery.Document, urlCollection ninjacrawler.UrlCollection) []string { return []string{} },
-		ItemSizes:        func(document *goquery.Document, urlCollection ninjacrawler.UrlCollection) []string { return []string{} },
-		ItemWeights:      func(document *goquery.Document, urlCollection ninjacrawler.UrlCollection) []string { return []string{} },
+		Reviews:          func(ctx ninjacrawler.CrawlerContext) []string { return []string{} },
+		ItemTypes:        func(ctx ninjacrawler.CrawlerContext) []string { return []string{} },
+		ItemSizes:        func(ctx ninjacrawler.CrawlerContext) []string { return []string{} },
+		ItemWeights:      func(ctx ninjacrawler.CrawlerContext) []string { return []string{} },
 		SingleItemSize:   "",
 		SingleItemWeight: "",
 		NumOfItems:       "",
@@ -39,16 +39,16 @@ func ProductHandler(crawler *ninjacrawler.Crawler) {
 	crawler.Collection(constant.ProductDetails).CrawlPageDetail(constant.Products)
 }
 
-func productNameHandler(app ninjacrawler.Crawler, document *goquery.Document, urlCollection ninjacrawler.UrlCollection) string {
-	return strings.Trim(document.Find(".details .intro h2").First().Text(), " \n")
+func productNameHandler(ctx ninjacrawler.CrawlerContext) string {
+	return strings.Trim(ctx.Document.Find(".details .intro h2").First().Text(), " \n")
 }
 
-func getUrlHandler(app ninjacrawler.Crawler, document *goquery.Document, urlCollection ninjacrawler.UrlCollection) string {
-	return urlCollection.Url
+func getUrlHandler(ctx ninjacrawler.CrawlerContext) string {
+	return ctx.UrlCollection.Url
 }
-func getProductCategory(app ninjacrawler.Crawler, document *goquery.Document, urlCollection ninjacrawler.UrlCollection) string {
+func getProductCategory(ctx ninjacrawler.CrawlerContext) string {
 	categoryItems := make([]string, 0)
-	document.Find("ol.st-Breadcrumb_List li.st-Breadcrumb_Item").Each(func(i int, s *goquery.Selection) {
+	ctx.Document.Find("ol.st-Breadcrumb_List li.st-Breadcrumb_Item").Each(func(i int, s *goquery.Selection) {
 		// Skip the first two items
 		if i >= 2 {
 			txt := strings.TrimSpace(s.Text())
@@ -58,24 +58,24 @@ func getProductCategory(app ninjacrawler.Crawler, document *goquery.Document, ur
 	return strings.Join(categoryItems, " > ")
 }
 
-func getProductDescription(app ninjacrawler.Crawler, document *goquery.Document, urlCollection ninjacrawler.UrlCollection) string {
+func getProductDescription(ctx ninjacrawler.CrawlerContext) string {
 
-	description := document.Find(".details .intro .text p").Text()
+	description := ctx.Document.Find(".details .intro .text p").Text()
 	description = strings.ReplaceAll(description, "\n\n", "\n")
 
 	return description
 }
-func getProductAttribute(app ninjacrawler.Crawler, document *goquery.Document, urlCollection ninjacrawler.UrlCollection) []ninjacrawler.AttributeItem {
+func getProductAttribute(ctx ninjacrawler.CrawlerContext) []ninjacrawler.AttributeItem {
 	attributes := []ninjacrawler.AttributeItem{}
 
-	getCatchCopyAttributeService(app, document, &attributes)
-	getMeritAttributeService(app, document, &attributes)
-	getCatalogAttributeService(app, document, &attributes)
+	getCatchCopyAttributeService(ctx.App, ctx.Document, &attributes)
+	getMeritAttributeService(ctx.App, ctx.Document, &attributes)
+	getCatalogAttributeService(ctx.App, ctx.Document, &attributes)
 
 	return attributes
 }
 
-func getCatchCopyAttributeService(app ninjacrawler.Crawler, document *goquery.Document, attributes *[]ninjacrawler.AttributeItem) {
+func getCatchCopyAttributeService(app *ninjacrawler.Crawler, document *goquery.Document, attributes *[]ninjacrawler.AttributeItem) {
 	item := strings.Trim(document.Find(".details .intro p.top").First().Text(), " \n")
 
 	if len(item) > 0 {
@@ -87,7 +87,7 @@ func getCatchCopyAttributeService(app ninjacrawler.Crawler, document *goquery.Do
 	}
 }
 
-func getMeritAttributeService(app ninjacrawler.Crawler, document *goquery.Document, attributes *[]ninjacrawler.AttributeItem) {
+func getMeritAttributeService(app *ninjacrawler.Crawler, document *goquery.Document, attributes *[]ninjacrawler.AttributeItem) {
 	key := strings.Trim(document.Find(".merit.clearfix h3").First().Text(), " \n")
 	values := strings.Trim(document.Find(".merit.clearfix ul").First().Text(), " \n")
 
@@ -100,7 +100,7 @@ func getMeritAttributeService(app ninjacrawler.Crawler, document *goquery.Docume
 	}
 }
 
-func getCatalogAttributeService(app ninjacrawler.Crawler, document *goquery.Document, attributes *[]ninjacrawler.AttributeItem) {
+func getCatalogAttributeService(app *ninjacrawler.Crawler, document *goquery.Document, attributes *[]ninjacrawler.AttributeItem) {
 	document.Find("#detail ul li").Each(func(i int, s *goquery.Selection) {
 		a := s.Find("a")
 		key := strings.Trim(a.Text(), " \n")

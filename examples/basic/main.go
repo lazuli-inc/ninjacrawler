@@ -37,8 +37,8 @@ func main() {
 		DevCrawlLimit:   1,
 		ConcurrentLimit: 1,
 		CookieConsent: &ninjacrawler.CookieAction{
-			ButtonText:       "Accept Cookies",
-			SleepAfterAction: 7, // 7 seconds sleep
+			ButtonText:                  "Accept Cookies",
+			MustHaveSelectorAfterAction: "body .page-container",
 		},
 	}).Handle(ninjacrawler.Handler{
 		UrlHandler:     sandvik2.UrlHandler,

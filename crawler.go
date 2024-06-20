@@ -93,7 +93,7 @@ func (app *Crawler) CrawlUrls(collection string, processor interface{}) {
 
 		urlCollections := app.getUrlCollections(collection)
 		if len(urlCollections) == 0 {
-			break
+			//break
 		}
 
 		var wg sync.WaitGroup
@@ -212,17 +212,19 @@ func (app *Crawler) CrawlPageDetail(collection string) {
 			switch res := v.Results.(type) {
 			case *ProductDetail:
 				app.saveProductDetail(res)
-				err := app.submitProductData(res)
-				if err != nil {
-					app.Logger.Fatal("failed to submit product data to API Server: %v", err)
-					err := app.markAsError(v.UrlCollection.Url, collection)
+				if !isLocalEnv(app.Config.GetString("APP_ENV")) {
+					err := app.submitProductData(res)
 					if err != nil {
-						app.Logger.Info(err.Error())
-						return
+						app.Logger.Fatal("failed to submit product data to API Server: %v", err)
+						err := app.markAsError(v.UrlCollection.Url, collection)
+						if err != nil {
+							app.Logger.Info(err.Error())
+							return
+						}
 					}
 				}
 
-				err = app.markAsComplete(v.UrlCollection.Url, collection)
+				err := app.markAsComplete(v.UrlCollection.Url, collection)
 				if err != nil {
 					app.Logger.Error(err.Error())
 					continue

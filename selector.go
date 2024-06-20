@@ -12,16 +12,6 @@ type UrlSelector struct {
 	Handler        func(urlCollection UrlCollection, fullUrl string, a *goquery.Selection) (string, map[string]interface{})
 }
 
-type CategorySelector struct {
-	*DataSelector
-}
-type DataSelector struct {
-	Query    string
-	Attr     string
-	UseFirst bool
-	Handler  func(urlCollection UrlCollection, data string, a *goquery.Selection) any
-}
-
 type SingleSelector struct {
 	Selector string
 }

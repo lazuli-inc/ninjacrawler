@@ -71,24 +71,6 @@ func (app *Crawler) processSelection(selection *goquery.Selection, selector UrlS
 	return items
 }
 
-func (app *Crawler) getItemsFromAttrOrText(selection *goquery.Selection, selector *CategorySelector) []string {
-	var items []string
-	selection.Each(func(i int, s *goquery.Selection) {
-		var value string
-		var ok bool // Declare ok here to avoid shadowing
-		s.Find("span.gt").Remove()
-		if selector.Attr != "" {
-			if value, ok = s.Attr(selector.Attr); ok {
-				items = append(items, value)
-			}
-		} else {
-			value = strings.TrimSpace(s.Text())
-			items = append(items, value)
-		}
-	})
-	return items
-}
-
 func (app *Crawler) GetPageDom(page playwright.Page) (*goquery.Document, error) {
 	html, err := page.Content()
 	if err != nil {

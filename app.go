@@ -45,7 +45,6 @@ func NewCrawler(name, url string, engines ...Engine) *Crawler {
 	}
 
 	logger := newDefaultLogger(crawler, name)
-	logger.Info("Crawler Started! 🚀")
 	crawler.Logger = logger
 	crawler.Client = crawler.mustGetClient()
 	crawler.BaseUrl = crawler.getBaseUrl(url)
@@ -58,6 +57,8 @@ func (app *Crawler) Start() {
 			app.Logger.Error("Recovered in Start: %v", r)
 		}
 	}()
+	startTime = time.Now()
+	app.Logger.Info("Crawler Started! 🚀")
 	app.newSite()
 	pw, err := GetPlaywright()
 	if err != nil {

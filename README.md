@@ -21,6 +21,7 @@ NinjaCrawler offers a robust set of features to make web crawling more efficient
 -   **Automatic DOM Capturing**: Capture the DOM automatically during navigation errors.
 -   **CSV Generation and API Submission**: Generate CSV files and submit product data to an API server.
 -   **Visual Monitoring Panel**: An upcoming feature to monitor crawling progress, logs, and sample data through a visual interface.
+-   **Early Site Structure Changed Detection**: An upcoming feature to Detect if Any website changed their exising structure .
 
 ## Installation
 
@@ -91,6 +92,61 @@ func main() {
 }
 
 ```
+
+
+### Example for Multi crawler (Kubernetes/(GKE))
+```
+# aqua site
+func Crawler() ninjacrawler.CrawlerConfig {
+	return ninjacrawler.CrawlerConfig{
+		Name: "aqua",
+		URL:  "https://aqua-has.com",
+		Engine: ninjacrawler.Engine{
+			IsDynamic:       false,
+			DevCrawlLimit:   1,
+			ConcurrentLimit: 1,
+			BlockResources:  true,
+		},
+		Handler: ninjacrawler.Handler{
+			UrlHandler:     UrlHandler,
+			ProductHandler: ProductHandler,
+		},
+	}
+}
+
+# kyocera site
+func Crawler() ninjacrawler.CrawlerConfig {
+	return ninjacrawler.CrawlerConfig{
+		Name: "kyocera",
+		URL:  "https://www.kyocera.co.jp/prdct/tool/category/product",
+		Engine: ninjacrawler.Engine{
+			BoostCrawling:  true,
+			BlockResources:  true,
+			DevCrawlLimit:   1,
+			ConcurrentLimit: 1,
+			BlockedURLs:     []string{"syncsearch.jp"},
+		},
+		Handler: ninjacrawler.Handler{
+			UrlHandler:     UrlHandler,
+			ProductHandler: ProductHandler,
+		},
+	}
+}
+
+# main.go
+
+func main() {
+	ninjacrawler.NewNinjaCrawler().
+		AddSite(kyocera.Crawler()).
+		AddSite(aqua.Crawler()).
+		AddSite(markt.Crawler()).
+		AddSite(sandvik.Crawler()).
+		Start()
+}
+
+
+```
+
 
 ### UrlHandler Example
 The `UrlHandler` function serves as a specific handler for the `ninjacrawler.Crawler` type. This function is designed to facilitate the crawling of URLs related to categories and products on a website, using the NinjaCrawler package.

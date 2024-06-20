@@ -35,9 +35,9 @@ func (app *Crawler) crawlWorker(ctx context.Context, dbCollection string, urlCha
 			}
 
 			if proxy.Server != "" {
-				app.Logger.Info("Crawling %s using Proxy %s", urlCollection.Url, proxy.Server)
+				app.Logger.Info("Crawling :%s: %s using Proxy %s", dbCollection, urlCollection.Url, proxy.Server)
 			} else {
-				app.Logger.Info("Crawling %s", urlCollection.Url)
+				app.Logger.Info("Crawling :%s: %s", dbCollection, urlCollection.Url)
 			}
 
 			doc, err := app.NavigateToURL(page, urlCollection.Url)

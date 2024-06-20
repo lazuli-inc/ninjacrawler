@@ -93,7 +93,7 @@ func (app *Crawler) CrawlUrls(collection string, processor interface{}) {
 
 		urlCollections := app.getUrlCollections(collection)
 		if len(urlCollections) == 0 {
-			//break
+			break
 		}
 
 		var wg sync.WaitGroup

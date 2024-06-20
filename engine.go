@@ -31,42 +31,42 @@ type CookieAction struct {
 	Fields                      []FormInput
 }
 
-func (e *Engine) SetBrowserType(browserType string) *Engine {
-	e.BrowserType = browserType
-	return e
+func (app *Crawler) SetBrowserType(browserType string) *Crawler {
+	app.engine.BrowserType = browserType
+	return app
 }
 
-func (e *Engine) SetConcurrentLimit(concurrentLimit int) *Engine {
-	e.ConcurrentLimit = concurrentLimit
-	return e
+func (app *Crawler) SetConcurrentLimit(concurrentLimit int) *Crawler {
+	app.engine.ConcurrentLimit = concurrentLimit
+	return app
 }
 
-func (e *Engine) IsDynamicPage(isDynamic bool) *Engine {
-	e.IsDynamic = isDynamic
-	return e
+func (app *Crawler) IsDynamicPage(isDynamic bool) *Crawler {
+	app.engine.IsDynamic = isDynamic
+	return app
 }
 
-func (e *Engine) SetCrawlLimit(crawlLimit int) *Engine {
-	e.DevCrawlLimit = crawlLimit
-	return e
+func (app *Crawler) SetCrawlLimit(crawlLimit int) *Crawler {
+	app.engine.DevCrawlLimit = crawlLimit
+	return app
 }
-func (e *Engine) SetBlockResources(block bool) *Engine {
-	e.BlockResources = block
-	return e
+func (app *Crawler) SetBlockResources(block bool) *Crawler {
+	app.engine.BlockResources = block
+	return app
 }
 
-func (e *Engine) EnableBoostCrawling() *Engine {
-	e.BoostCrawling = true
-	e.ProxyServers = e.getProxyList()
-	return e
+func (app *Crawler) EnableBoostCrawling() *Crawler {
+	app.engine.BoostCrawling = true
+	app.engine.ProxyServers = app.engine.getProxyList()
+	return app
 }
-func (e *Engine) SetCookieConsent(action *CookieAction) *Engine {
-	e.CookieConsent = action
-	return e
+func (app *Crawler) SetCookieConsent(action *CookieAction) *Crawler {
+	app.engine.CookieConsent = action
+	return app
 }
-func (e *Engine) SetTimeout(timeout time.Duration) *Engine {
-	e.Timeout = timeout * time.Second
-	return e
+func (app *Crawler) SetTimeout(timeout time.Duration) *Crawler {
+	app.engine.Timeout = timeout * time.Second
+	return app
 }
 
 // Todo: getProxyList should be generate dynamically in future

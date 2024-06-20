@@ -87,31 +87,51 @@ func (app *Crawler) crawlWorker(ctx context.Context, dbCollection string, urlCha
 	}
 }
 
-func (app *Crawler) CrawlUrls(collection string, processor interface{}) {
-	var items []UrlCollection
-	for {
+type Preference struct {
+	MarkAsComplete bool
+}
 
+func (app *Crawler) CrawlUrls(collection string, processor interface{}, preferences ...Preference) {
+	var items []UrlCollection
+	var preference Preference
+	preference.MarkAsComplete = true
+	if len(preferences) > 0 {
+		preference = preferences[0]
+	}
+
+	processedUrls := make(map[string]bool) // Track processed URLs
+
+	for {
 		urlCollections := app.getUrlCollections(collection)
-		if len(urlCollections) == 0 {
+
+		// Filter out already processed URLs
+		newUrlCollections := []UrlCollection{}
+		for _, urlCollection := range urlCollections {
+			if !processedUrls[urlCollection.Url] {
+				newUrlCollections = append(newUrlCollections, urlCollection)
+			}
+		}
+
+		if len(newUrlCollections) == 0 {
 			break
 		}
 
 		var wg sync.WaitGroup
-		urlChan := make(chan UrlCollection, len(urlCollections))
-		resultChan := make(chan interface{}, len(urlCollections))
+		urlChan := make(chan UrlCollection, len(newUrlCollections))
+		resultChan := make(chan interface{}, len(newUrlCollections))
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 
 		counter := int32(0)
 
-		for _, urlCollection := range urlCollections {
+		for _, urlCollection := range newUrlCollections {
 			urlChan <- urlCollection
+			processedUrls[urlCollection.Url] = true // Mark URL as processed
 		}
 		close(urlChan)
 
 		proxyCount := len(app.engine.ProxyServers)
 		batchSize := app.engine.ConcurrentLimit
-		totalUrls := len(urlCollections)
+		totalUrls := len(newUrlCollections)
 		goroutineCount := min(max(proxyCount, 1)*batchSize, totalUrls)
 
 		for i := 0; i < goroutineCount; i++ {
@@ -144,10 +164,12 @@ func (app *Crawler) CrawlUrls(collection string, processor interface{}) {
 						}
 					}
 					app.insert(res, v.UrlCollection.Url)
-					err := app.markAsComplete(v.UrlCollection.Url, collection)
-					if err != nil {
-						app.Logger.Error(err.Error())
-						continue
+					if preference.MarkAsComplete {
+						err := app.markAsComplete(v.UrlCollection.Url, collection)
+						if err != nil {
+							app.Logger.Error(err.Error())
+							continue
+						}
 					}
 					app.Logger.Info("(%d) :%s: Found From [%s => %s]", len(res), app.collection, collection, v.UrlCollection.Url)
 				}
@@ -159,10 +181,10 @@ func (app *Crawler) CrawlUrls(collection string, processor interface{}) {
 			}
 		}
 
+		cancel() // Ensure context is canceled after processing
 	}
 
 	app.Logger.Info("Total :%s: = (%d)", app.collection, len(items))
-
 }
 
 // CrawlPageDetail initiates the crawling process for detailed page information from the specified collection.

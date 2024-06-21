@@ -306,7 +306,7 @@ crawler := ninjacrawler.NewCrawler("example", "https://example.com", ninjacrawle
 		ConcurrentLimit: 1,
 		CookieConsent: &ninjacrawler.CookieAction{
 			ButtonText:       "Accept Cookies",
-			SleepAfterAction: 5,
+			MustHaveSelectorAfterAction: "body .dynamic-dom",
 		},
 	})
 ```
@@ -315,7 +315,7 @@ crawler := ninjacrawler.NewCrawler("example", "https://example.com", ninjacrawle
 ```
 crawler.Collection(constant.Categories).SetCookieConsent(&ninjacrawler.CookieAction{
 		ButtonText:       "Accept Cookies",
-		SleepAfterAction: 5,
+		MustHaveSelectorAfterAction: "body .dynamic-dom",
 	},).CrawlUrls(crawler.GetBaseCollection(), categorySelector)
 ```
 

@@ -30,7 +30,7 @@ func (app *Crawler) crawlWorker(ctx context.Context, dbCollection string, urlCha
 			}
 
 			if isLocalEnv && atomic.LoadInt32(counter) >= int32(app.engine.DevCrawlLimit) {
-				//app.Logger.Info("Dev Crawl limit reached!")
+				app.Logger.Warn("Dev Crawl limit reached!")
 				return
 			}
 
@@ -184,7 +184,9 @@ func (app *Crawler) CrawlUrls(collection string, processor interface{}, preferen
 		cancel() // Ensure context is canceled after processing
 	}
 
-	app.Logger.Info("Total :%s: = (%d)", app.collection, len(items))
+	if len(items) > 0 {
+		app.Logger.Info("Total :%s: = (%d)", app.collection, len(items))
+	}
 }
 
 // CrawlPageDetail initiates the crawling process for detailed page information from the specified collection.

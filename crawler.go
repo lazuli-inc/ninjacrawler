@@ -159,7 +159,7 @@ func (app *Crawler) CrawlUrls(collection string, processor interface{}, preferen
 					items = append(items, res...)
 					for _, item := range res {
 						if item.Parent == "" && collection != baseCollection {
-							app.Logger.Fatal("Missing Parent Url")
+							app.Logger.Fatal("Missing Parent Url, Invalid UrlCollection: %v", item)
 							continue
 						}
 					}

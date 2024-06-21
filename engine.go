@@ -10,16 +10,17 @@ type Proxy struct {
 	Password string
 }
 type Engine struct {
-	BrowserType     string
-	ConcurrentLimit int
-	IsDynamic       bool
-	DevCrawlLimit   int
-	BlockResources  bool
-	BlockedURLs     []string
-	BoostCrawling   bool
-	ProxyServers    []Proxy
-	CookieConsent   *CookieAction
-	Timeout         time.Duration
+	BrowserType      string
+	ConcurrentLimit  int
+	IsDynamic        bool
+	DevCrawlLimit    int
+	BlockResources   bool
+	DisableRendering bool
+	BlockedURLs      []string
+	BoostCrawling    bool
+	ProxyServers     []Proxy
+	CookieConsent    *CookieAction
+	Timeout          time.Duration
 }
 type FormInput struct {
 	Key string
@@ -66,6 +67,10 @@ func (app *Crawler) SetCookieConsent(action *CookieAction) *Crawler {
 }
 func (app *Crawler) SetTimeout(timeout time.Duration) *Crawler {
 	app.engine.Timeout = timeout * time.Second
+	return app
+}
+func (app *Crawler) DisableRendering() *Crawler {
+	app.engine.DisableRendering = true
 	return app
 }
 

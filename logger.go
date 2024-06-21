@@ -53,7 +53,10 @@ func newDefaultLogger(app *Crawler, siteName string) *defaultLogger {
 }
 
 func (l *defaultLogger) Info(format string, args ...interface{}) {
-	l.logger.Printf("📢 "+format, args...)
+	l.logger.Printf("✔ "+format, args...)
+}
+func (l *defaultLogger) Warn(format string, args ...interface{}) {
+	l.logger.Printf("⚠️ "+format, args...)
 }
 
 func (l *defaultLogger) Error(format string, args ...interface{}) {

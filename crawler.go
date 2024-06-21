@@ -246,7 +246,6 @@ func (app *Crawler) CrawlPageDetail(collection string) {
 							return
 						}
 					}
-					app.Logger.Info("Product data Submitted to API Server")
 				}
 
 				err := app.markAsComplete(v.UrlCollection.Url, collection)

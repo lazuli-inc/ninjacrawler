@@ -9,18 +9,20 @@ type Proxy struct {
 	Username string
 	Password string
 }
+
 type Engine struct {
-	BrowserType      string
-	ConcurrentLimit  int
-	IsDynamic        bool
-	DevCrawlLimit    int
-	BlockResources   bool
-	DisableRendering bool
-	BlockedURLs      []string
-	BoostCrawling    bool
-	ProxyServers     []Proxy
-	CookieConsent    *CookieAction
-	Timeout          time.Duration
+	BrowserType             string
+	ConcurrentLimit         int
+	IsDynamic               bool
+	DevCrawlLimit           int
+	BlockResources          bool
+	JavaScriptEnabled       bool
+	BlockedURLs             []string
+	BoostCrawling           bool
+	ProxyServers            []Proxy
+	CookieConsent           *CookieAction
+	Timeout                 time.Duration
+	WaitForDynamicRendering bool
 }
 type FormInput struct {
 	Key string
@@ -69,8 +71,12 @@ func (app *Crawler) SetTimeout(timeout time.Duration) *Crawler {
 	app.engine.Timeout = timeout * time.Second
 	return app
 }
-func (app *Crawler) DisableRendering() *Crawler {
-	app.engine.DisableRendering = true
+func (app *Crawler) DisableJavaScript() *Crawler {
+	app.engine.JavaScriptEnabled = false
+	return app
+}
+func (app *Crawler) WaitForDynamicRendering() *Crawler {
+	app.engine.WaitForDynamicRendering = true
 	return app
 }
 

@@ -3,6 +3,7 @@ package ninjacrawler
 import (
 	"github.com/playwright-community/playwright-go"
 	"go.mongodb.org/mongo-driver/mongo"
+	"net/http"
 	"time"
 )
 
@@ -24,6 +25,8 @@ type Crawler struct {
 	ProductDetailSelector ProductDetailSelector
 	engine                *Engine
 	Logger                *defaultLogger
+	httpClient            *http.Client
+	isLocalEnv            bool
 }
 
 func NewCrawler(name, url string, engines ...Engine) *Crawler {
@@ -48,6 +51,7 @@ func NewCrawler(name, url string, engines ...Engine) *Crawler {
 	crawler.Logger = logger
 	crawler.Client = crawler.mustGetClient()
 	crawler.BaseUrl = crawler.getBaseUrl(url)
+	crawler.isLocalEnv = config.GetString("APP_ENV") == "local"
 	return crawler
 }
 
@@ -60,12 +64,16 @@ func (app *Crawler) Start() {
 	startTime = time.Now()
 	app.Logger.Info("Crawler Started! 🚀")
 	app.newSite()
-	pw, err := GetPlaywright()
-	if err != nil {
-		app.Logger.Fatal("failed to initialize playwright: %v\n", err)
-		return // exit if playwright initialization fails
+	if app.engine.IsDynamic {
+		pw, err := GetPlaywright()
+		if err != nil {
+			app.Logger.Fatal("failed to initialize playwright: %v\n", err)
+			return // exit if playwright initialization fails
+		}
+		app.pw = pw
+	} else {
+		app.httpClient = app.getHttpClient()
 	}
-	app.pw = pw
 }
 
 func (app *Crawler) Stop() {
@@ -117,12 +125,13 @@ func (app *Crawler) Handle(handler Handler) {
 
 func getDefaultEngine() Engine {
 	return Engine{
-		BrowserType:      "chromium",
-		ConcurrentLimit:  1,
-		IsDynamic:        false,
-		DevCrawlLimit:    50,
-		BlockResources:   false,
-		DisableRendering: false,
+		BrowserType:             "chromium",
+		ConcurrentLimit:         1,
+		IsDynamic:               false,
+		WaitForDynamicRendering: false,
+		DevCrawlLimit:           50,
+		BlockResources:          false,
+		JavaScriptEnabled:       true,
 		BlockedURLs: []string{
 			"www.googletagmanager.com",
 			"google.com",
@@ -146,14 +155,17 @@ func overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	if eng.IsDynamic {
 		defaultEngine.IsDynamic = eng.IsDynamic
 	}
+	if eng.WaitForDynamicRendering {
+		defaultEngine.WaitForDynamicRendering = eng.WaitForDynamicRendering
+	}
 	if eng.DevCrawlLimit > 0 {
 		defaultEngine.DevCrawlLimit = eng.DevCrawlLimit
 	}
 	if eng.BlockResources {
 		defaultEngine.BlockResources = eng.BlockResources
 	}
-	if eng.DisableRendering {
-		defaultEngine.DisableRendering = eng.DisableRendering
+	if eng.JavaScriptEnabled {
+		defaultEngine.JavaScriptEnabled = eng.JavaScriptEnabled
 	}
 	if eng.BoostCrawling {
 		defaultEngine.BoostCrawling = eng.BoostCrawling

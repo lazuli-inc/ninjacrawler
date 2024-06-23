@@ -82,16 +82,15 @@ func (app *Crawler) GetPageDom(page playwright.Page) (*goquery.Document, error) 
 	}
 	return document, nil
 }
-func (app *Crawler) writePageContentToFile(page playwright.Page, msg string) error {
-	content, err := page.Content()
-	if err != nil {
-		content = "No Page Content Found"
+func (app *Crawler) writePageContentToFile(html, url, msg string) error {
+	if html == "" {
+		html = "No Page Content Found"
 	}
-	content = strings.TrimSpace(msg) + "\n" + content
-	content = fmt.Sprintf("<!-- Time: %v \n Page Url: %s -->\n%s", time.Now(), page.URL(), content)
-	filename := generateFilename(page.URL())
+	html = strings.TrimSpace(msg) + "\n" + html
+	html = fmt.Sprintf("<!-- Time: %v \n Page Url: %s -->\n%s", time.Now(), url, html)
+	filename := generateFilename(url)
 	directory := filepath.Join("storage", "logs", app.Name, "html")
-	err = os.MkdirAll(directory, 0755)
+	err := os.MkdirAll(directory, 0755)
 	if err != nil {
 		return err
 	}
@@ -102,7 +101,7 @@ func (app *Crawler) writePageContentToFile(page playwright.Page, msg string) err
 	}
 	defer file.Close()
 
-	_, err = file.WriteString(content)
+	_, err = file.WriteString(html)
 	if err != nil {
 		return err
 	}
@@ -163,4 +162,12 @@ func (app *Crawler) getBaseUrl(urlString string) string {
 
 	baseURL := parsedURL.Scheme + "://" + parsedURL.Host
 	return baseURL
+}
+
+func (app *Crawler) getHtmlFromPage(page playwright.Page) string {
+	html, err := page.Content()
+	if err != nil {
+		app.Logger.Error("failed to get html from page", "Error", err)
+	}
+	return html
 }

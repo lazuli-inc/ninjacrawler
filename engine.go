@@ -23,6 +23,7 @@ type Engine struct {
 	CookieConsent           *CookieAction
 	Timeout                 time.Duration
 	WaitForDynamicRendering bool
+	SleepAfter              int
 }
 type FormInput struct {
 	Key string
@@ -79,6 +80,10 @@ func (app *Crawler) WaitForDynamicRendering() *Crawler {
 	app.engine.WaitForDynamicRendering = true
 	return app
 }
+func (app *Crawler) SetSleepAfter(sleepAfter int) *Crawler {
+	app.engine.SleepAfter = sleepAfter
+	return app
+}
 
 // Todo: getProxyList should be generate dynamically in future
 func (e *Engine) getProxyList() []Proxy {
@@ -88,7 +93,7 @@ func (e *Engine) getProxyList() []Proxy {
 	}, Proxy{
 		Server: "http://34.146.155.165:3000", // Proxy-server-2
 	}, Proxy{
-		Server: "http://34.143.176.68:3000", // Proxy-server-3
+		Server: "http://34.146.38.231:3000", // Proxy-server-3
 	})
 	return proxies
 }

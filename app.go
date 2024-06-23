@@ -142,6 +142,7 @@ func getDefaultEngine() Engine {
 		ProxyServers:  []Proxy{},
 		CookieConsent: nil,
 		Timeout:       30 * 1000, // 30 sec
+		SleepAfter:    30,
 	}
 }
 
@@ -179,6 +180,9 @@ func overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	}
 	if eng.Timeout > 0 {
 		defaultEngine.Timeout = eng.Timeout * 1000
+	}
+	if eng.SleepAfter > 0 {
+		defaultEngine.SleepAfter = eng.SleepAfter
 	}
 	defaultEngine.BlockedURLs = append(defaultEngine.BlockedURLs, eng.BlockedURLs...)
 }

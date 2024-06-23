@@ -71,9 +71,9 @@ func (l *defaultLogger) Printf(format string, args ...interface{}) {
 	l.logger.Printf(format, args...)
 }
 
-func (l *defaultLogger) Html(page playwright.Page, msg string) {
+func (l *defaultLogger) Html(html, url, msg string) {
 	l.Error(msg)
-	err := l.app.writePageContentToFile(page, msg)
+	err := l.app.writePageContentToFile(html, url, msg)
 	if err != nil {
 		l.logger.Printf("⚛️ HTML: %v", err)
 	}

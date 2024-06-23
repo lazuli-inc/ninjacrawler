@@ -24,8 +24,8 @@ func (app *Crawler) GetBrowserPage(pw *playwright.Playwright, browserType string
 	var err error
 
 	var browserTypeLaunchOptions playwright.BrowserTypeLaunchOptions
-	browserTypeLaunchOptions.Headless = playwright.Bool(!isLocalEnv(app.Config.GetString("APP_ENV")))
-	browserTypeLaunchOptions.Devtools = playwright.Bool(isLocalEnv(app.Config.GetString("APP_ENV")))
+	browserTypeLaunchOptions.Headless = playwright.Bool(!app.isLocalEnv)
+	browserTypeLaunchOptions.Devtools = playwright.Bool(app.isLocalEnv)
 
 	if len(app.engine.ProxyServers) > 0 {
 		// Set Proxy options
@@ -52,7 +52,7 @@ func (app *Crawler) GetBrowserPage(pw *playwright.Playwright, browserType string
 
 	page, err := browser.NewPage(playwright.BrowserNewPageOptions{
 		UserAgent:         playwright.String(app.Config.GetString("USER_AGENT")),
-		JavaScriptEnabled: playwright.Bool(!app.engine.DisableRendering),
+		JavaScriptEnabled: playwright.Bool(app.engine.JavaScriptEnabled),
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create page: %w", err)
@@ -128,7 +128,7 @@ func (app *Crawler) HandleCookieConsent(page playwright.Page) error {
 // If navigation or handling consent fails, it logs the page content to a file and returns an error.
 func (app *Crawler) NavigateToURL(page playwright.Page, url string) (*goquery.Document, error) {
 	waitUntil := playwright.WaitUntilStateDomcontentloaded
-	if app.engine.IsDynamic {
+	if app.engine.WaitForDynamicRendering {
 		waitUntil = playwright.WaitUntilStateNetworkidle
 	}
 
@@ -137,14 +137,14 @@ func (app *Crawler) NavigateToURL(page playwright.Page, url string) (*goquery.Do
 		Timeout:   playwright.Float(float64(app.engine.Timeout)),
 	})
 	if err != nil {
-		app.Logger.Html(page, err.Error())
+		app.Logger.Html(app.getHtmlFromPage(page), url, err.Error())
 		return nil, err
 	}
 
 	// Handle cookie consent
 	err = app.HandleCookieConsent(page)
 	if err != nil {
-		app.Logger.Html(page, err.Error())
+		app.Logger.Html(app.getHtmlFromPage(page), url, err.Error())
 		return nil, err
 	}
 	return app.GetPageDom(page)

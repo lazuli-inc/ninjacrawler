@@ -20,7 +20,6 @@ type Crawler struct {
 	Url                   string
 	BaseUrl               string
 	pw                    *playwright.Playwright
-	collection            string
 	UrlSelectors          []UrlSelector
 	ProductDetailSelector ProductDetailSelector
 	engine                *Engine
@@ -40,11 +39,10 @@ func NewCrawler(name, url string, engines ...Engine) *Crawler {
 	config := newConfig()
 
 	crawler := &Crawler{
-		Name:       name,
-		Url:        url,
-		collection: baseCollection,
-		engine:     &defaultEngine,
-		Config:     config,
+		Name:   name,
+		Url:    url,
+		engine: &defaultEngine,
+		Config: config,
 	}
 
 	logger := newDefaultLogger(crawler, name)
@@ -64,6 +62,10 @@ func (app *Crawler) Start() {
 	startTime = time.Now()
 	app.Logger.Info("Crawler Started! 🚀")
 	app.newSite()
+	app.toggleClient()
+}
+
+func (app *Crawler) toggleClient() {
 	if app.engine.IsDynamic {
 		pw, err := GetPlaywright()
 		if err != nil {
@@ -93,22 +95,8 @@ func (app *Crawler) Stop() {
 	app.Logger.Info("Crawler stopped in ⚡ %v", duration)
 }
 
-func (app *Crawler) Collection(collection string) *Crawler {
-	app.collection = collection
-	return app
-}
-
-func (app *Crawler) GetCollection() string {
-	return app.collection
-}
-
 func (app *Crawler) GetBaseCollection() string {
 	return baseCollection
-}
-
-type Handler struct {
-	UrlHandler     func(c *Crawler)
-	ProductHandler func(c *Crawler)
 }
 
 func (app *Crawler) Handle(handler Handler) {
@@ -142,7 +130,7 @@ func getDefaultEngine() Engine {
 		ProxyServers:  []Proxy{},
 		CookieConsent: nil,
 		Timeout:       30 * 1000, // 30 sec
-		SleepAfter:    30,
+		SleepAfter:    1000,
 	}
 }
 

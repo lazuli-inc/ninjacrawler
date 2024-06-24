@@ -2,6 +2,7 @@ package ninjacrawler
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/proxy"
@@ -22,6 +23,30 @@ func (app *Crawler) getHttpClient() *http.Client {
 }
 
 func (app *Crawler) NavigateToStaticURL(client *http.Client, urlString string, proxyServer Proxy) (*goquery.Document, error) {
+
+	body, err := app.getResponseBody(client, urlString, proxyServer)
+	document, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
+
+	if err != nil {
+		return nil, err
+	}
+	return document, nil
+}
+
+func (app *Crawler) NavigateToApiURL(client *http.Client, urlString string, proxyServer Proxy) (map[string]interface{}, error) {
+
+	body, err := app.getResponseBody(client, urlString, proxyServer)
+
+	// Decode JSON response
+	var jsonResponse map[string]interface{}
+	err = json.Unmarshal(body, &jsonResponse)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JSON response: %w", err)
+	}
+
+	return jsonResponse, nil
+}
+func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxyServer Proxy) ([]byte, error) {
 	if len(app.engine.ProxyServers) > 0 {
 		// Create the proxy URL
 		proxyURL, err := url.Parse(proxyServer.Server)
@@ -74,10 +99,5 @@ func (app *Crawler) NavigateToStaticURL(client *http.Client, urlString string, p
 		app.Logger.Html(string(body), urlString, msg)
 		return nil, fmt.Errorf(msg)
 	}
-
-	document, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
-	if err != nil {
-		return nil, err
-	}
-	return document, nil
+	return body, nil
 }

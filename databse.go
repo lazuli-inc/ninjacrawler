@@ -56,7 +56,7 @@ func (app *Crawler) ensureUniqueIndex(collection *mongo.Collection) {
 }
 
 // insert inserts multiple URL collections into the database.
-func (app *Crawler) insert(urlCollections []UrlCollection, parent string) {
+func (app *Crawler) insert(model string, urlCollections []UrlCollection, parent string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -76,7 +76,7 @@ func (app *Crawler) insert(urlCollections []UrlCollection, parent string) {
 	}
 
 	opts := options.InsertMany().SetOrdered(false)
-	collection := app.getCollection(app.GetCollection())
+	collection := app.getCollection(model)
 	_, _ = collection.InsertMany(ctx, documents, opts)
 }
 
@@ -94,16 +94,16 @@ func (app *Crawler) newSite() {
 		EndedAt:   nil,
 	}
 
-	collection := app.getCollection(app.GetCollection())
+	collection := app.getCollection(app.GetBaseCollection())
 	_, _ = collection.InsertOne(ctx, document)
 }
 
 // saveProductDetail saves or updates a product detail document in the database.
-func (app *Crawler) saveProductDetail(productDetail *ProductDetail) {
+func (app *Crawler) saveProductDetail(model string, productDetail *ProductDetail) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	collection := app.getCollection(app.GetCollection())
+	collection := app.getCollection(model)
 	_, err := collection.ReplaceOne(ctx, bson.D{{Key: "url", Value: productDetail.Url}}, productDetail, options.Replace().SetUpsert(true))
 	if err != nil {
 		app.Logger.Error("Could not save product detail: %v", err)

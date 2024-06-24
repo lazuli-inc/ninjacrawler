@@ -48,3 +48,26 @@ type ProductDetailSelector struct {
 	SellingPrice     interface{}
 	Attributes       interface{}
 }
+
+type ProductDetailApi struct {
+	Jan              interface{}
+	PageTitle        interface{}
+	Url              interface{}
+	Images           interface{}
+	ProductCodes     interface{}
+	Maker            interface{}
+	Brand            interface{}
+	ProductName      interface{}
+	Category         interface{}
+	Description      interface{}
+	Reviews          interface{}
+	ItemTypes        interface{}
+	ItemSizes        interface{}
+	ItemWeights      interface{}
+	SingleItemSize   interface{}
+	SingleItemWeight interface{}
+	NumOfItems       interface{}
+	ListPrice        interface{}
+	SellingPrice     interface{}
+	Attributes       interface{}
+}

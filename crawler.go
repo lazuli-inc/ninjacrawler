@@ -11,21 +11,12 @@ import (
 	"time"
 )
 
-// Todo check why multiple dev crawl limit msg showing ex: DevCrawlLimit:10,ConcurrentLimit:10,
-
-// Struct to hold both results and the UrlCollection
-type CrawlResult struct {
-	Results       interface{}
-	UrlCollection UrlCollection
-	Page          playwright.Page
-	Document      *goquery.Document
-}
-
 func (app *Crawler) crawlWorker(ctx context.Context, dbCollection string, urlChan <-chan UrlCollection, resultChan chan<- interface{}, proxy Proxy, processor interface{}, isLocalEnv bool, counter *int32) {
 	var page playwright.Page
 	var browser playwright.Browser
 	var err error
 	var doc *goquery.Document
+	var apiResponse map[string]interface{}
 
 	if app.engine.IsDynamic {
 		browser, page, err = app.GetBrowserPage(app.pw, app.engine.BrowserType, proxy)
@@ -55,7 +46,12 @@ func (app *Crawler) crawlWorker(ctx context.Context, dbCollection string, urlCha
 			if app.engine.IsDynamic {
 				doc, err = app.NavigateToURL(page, urlCollection.Url)
 			} else {
-				doc, err = app.NavigateToStaticURL(app.httpClient, urlCollection.Url, proxy)
+				switch processor.(type) {
+				case ProductDetailApi:
+					apiResponse, err = app.NavigateToApiURL(app.httpClient, urlCollection.Url, proxy)
+				default:
+					doc, err = app.NavigateToStaticURL(app.httpClient, urlCollection.Url, proxy)
+				}
 			}
 
 			if err != nil {
@@ -73,6 +69,7 @@ func (app *Crawler) crawlWorker(ctx context.Context, dbCollection string, urlCha
 				Document:      doc,
 				UrlCollection: urlCollection,
 				Page:          page,
+				ApiResponse:   apiResponse,
 			}
 
 			var results interface{}
@@ -84,7 +81,9 @@ func (app *Crawler) crawlWorker(ctx context.Context, dbCollection string, urlCha
 				results = app.processDocument(doc, v, urlCollection)
 
 			case ProductDetailSelector:
-				results = crawlerCtx.handleProductDetail()
+				results = crawlerCtx.handleProductDetail(processor)
+			case ProductDetailApi:
+				results = crawlerCtx.handleProductDetailApi(processor)
 
 			default:
 				app.Logger.Fatal("Unsupported processor type: %T", processor)
@@ -117,26 +116,18 @@ func (app *Crawler) crawlWorker(ctx context.Context, dbCollection string, urlCha
 	}
 }
 
-type Preference struct {
-	MarkAsComplete bool
-}
-
-func (app *Crawler) CrawlUrls(collection string, processor interface{}, preferences ...Preference) {
-	processedUrls := make(map[string]bool) // Track processed URLs
-	total := int32(0)
-	app.crawlUrlsRecursive(collection, processor, &total, 0, processedUrls, preferences...)
-	if atomic.LoadInt32(&total) > 0 {
-		app.Logger.Info("[Total (%d) :%s: found from :%s:]", atomic.LoadInt32(&total), app.collection, collection)
+func (app *Crawler) CrawlUrls(processorConfigs []ProcessorConfig) {
+	for _, processorConfig := range processorConfigs {
+		processedUrls := make(map[string]bool) // Track processed URLs
+		total := int32(0)
+		app.crawlUrlsRecursive(processorConfig, processedUrls, &total, 0)
+		if atomic.LoadInt32(&total) > 0 {
+			app.Logger.Info("[Total (%d) :%s: found from :%s:]", atomic.LoadInt32(&total), processorConfig.Entity, processorConfig.OriginCollection)
+		}
 	}
 }
-func (app *Crawler) crawlUrlsRecursive(collection string, processor interface{}, total *int32, counter int32, processedUrls map[string]bool, preferences ...Preference) {
-	var preference Preference
-	preference.MarkAsComplete = true
-	if len(preferences) > 0 {
-		preference = preferences[0]
-	}
-
-	urlCollections := app.getUrlCollections(collection)
+func (app *Crawler) crawlUrlsRecursive(processorConfig ProcessorConfig, processedUrls map[string]bool, total *int32, counter int32) {
+	urlCollections := app.getUrlCollections(processorConfig.OriginCollection)
 
 	newUrlCollections := []UrlCollection{}
 	for i, urlCollection := range urlCollections {
@@ -173,7 +164,7 @@ func (app *Crawler) crawlUrlsRecursive(collection string, processor interface{},
 		wg.Add(1)
 		go func(proxy Proxy) {
 			defer wg.Done()
-			app.crawlWorker(ctx, collection, urlChan, resultChan, proxy, processor, app.isLocalEnv, &counter)
+			app.crawlWorker(ctx, processorConfig.OriginCollection, urlChan, resultChan, proxy, processorConfig.Processor, app.isLocalEnv, &counter)
 		}(proxy)
 	}
 
@@ -188,21 +179,21 @@ func (app *Crawler) crawlUrlsRecursive(collection string, processor interface{},
 			switch res := v.Results.(type) {
 			case []UrlCollection:
 				for _, item := range res {
-					if item.Parent == "" && collection != baseCollection {
-						app.Logger.Fatal("Missing Parent Url, Invalid UrlCollection: %v", item)
+					if item.Parent == "" && processorConfig.OriginCollection != baseCollection {
+						app.Logger.Fatal("Missing Parent Url, Invalid OriginCollection: %v", item)
 						continue
 					}
 				}
-				app.insert(res, v.UrlCollection.Url)
-				if preference.MarkAsComplete {
-					err := app.markAsComplete(v.UrlCollection.Url, collection)
+				app.insert(processorConfig.Entity, res, v.UrlCollection.Url)
+				if !processorConfig.Preference.DoNotMarkAsComplete {
+					err := app.markAsComplete(v.UrlCollection.Url, processorConfig.OriginCollection)
 					if err != nil {
 						app.Logger.Error(err.Error())
 						continue
 					}
 				}
 				atomic.AddInt32(total, int32(len(res)))
-				app.Logger.Info("(%d) :%s: Found From [%s => %s]", len(res), app.collection, collection, v.UrlCollection.Url)
+				app.Logger.Info("(%d) :%s: Found From [%s => %s]", len(res), processorConfig.Entity, processorConfig.OriginCollection, v.UrlCollection.Url)
 			}
 		}
 	}
@@ -212,22 +203,24 @@ func (app *Crawler) crawlUrlsRecursive(collection string, processor interface{},
 		return
 	}
 	if len(newUrlCollections) > 0 && (app.isLocalEnv && atomic.LoadInt32(&counter) < int32(app.engine.DevCrawlLimit)) {
-		app.crawlUrlsRecursive(collection, processor, total, counter, processedUrls, preference)
+		app.crawlUrlsRecursive(processorConfig, processedUrls, total, counter)
 	}
 }
 
 // CrawlPageDetail initiates the crawling process for detailed page information from the specified collection.
 // It distributes the work among multiple goroutines and uses proxies if available.
-func (app *Crawler) CrawlPageDetail(collection string, mustRequiredFields ...string) {
-	processedUrls := make(map[string]bool) // Track processed URLs
-	total := int32(0)
-	app.CrawlPageDetailRecursive(collection, &total, 0, processedUrls, mustRequiredFields...)
-	app.Logger.Info("Total %v %v Inserted ", atomic.LoadInt32(&total), app.collection)
-	exportProductDetailsToCSV(app, app.collection, 1)
+func (app *Crawler) CrawlPageDetail(processorConfigs []ProcessorConfig) {
+	for _, processorConfig := range processorConfigs {
+		processedUrls := make(map[string]bool) // Track processed URLs
+		total := int32(0)
+		app.crawlPageDetailRecursive(processorConfig, processedUrls, &total, 0)
+		app.Logger.Info("Total %v %v Inserted ", atomic.LoadInt32(&total), processorConfig.OriginCollection)
+		exportProductDetailsToCSV(app, processorConfig.OriginCollection, 1)
+	}
 }
 
-func (app *Crawler) CrawlPageDetailRecursive(collection string, total *int32, counter int32, processedUrls map[string]bool, mustRequiredFields ...string) {
-	urlCollections := app.getUrlCollections(collection)
+func (app *Crawler) crawlPageDetailRecursive(processorConfig ProcessorConfig, processedUrls map[string]bool, total *int32, counter int32) {
+	urlCollections := app.getUrlCollections(processorConfig.OriginCollection)
 	newUrlCollections := []UrlCollection{}
 	for i, urlCollection := range urlCollections {
 		if app.isLocalEnv && i >= app.engine.DevCrawlLimit {
@@ -263,7 +256,7 @@ func (app *Crawler) CrawlPageDetailRecursive(collection string, total *int32, co
 		wg.Add(1)
 		go func(proxy Proxy) {
 			defer wg.Done()
-			app.crawlWorker(ctx, collection, urlChan, resultChan, proxy, app.ProductDetailSelector, app.isLocalEnv, &counter)
+			app.crawlWorker(ctx, processorConfig.OriginCollection, urlChan, resultChan, proxy, processorConfig.Processor, app.isLocalEnv, &counter)
 		}(proxy)
 	}
 
@@ -277,7 +270,7 @@ func (app *Crawler) CrawlPageDetailRecursive(collection string, total *int32, co
 		case CrawlResult:
 			switch res := v.Results.(type) {
 			case *ProductDetail:
-				invalidFields, unknownFields := validateRequiredFields(res, mustRequiredFields)
+				invalidFields, unknownFields := validateRequiredFields(res, processorConfig.Preference.ValidationRules)
 				if len(unknownFields) > 0 {
 					app.Logger.Error("Unknown fields provided: %v", unknownFields)
 					continue
@@ -288,7 +281,7 @@ func (app *Crawler) CrawlPageDetailRecursive(collection string, total *int32, co
 						html = app.getHtmlFromPage(v.Page)
 					}
 					app.Logger.Html(html, v.UrlCollection.Url, fmt.Sprintf("Validation failed from URL: %v. Missing value for required fields: %v", v.UrlCollection.Url, invalidFields))
-					err := app.markAsError(v.UrlCollection.Url, collection)
+					err := app.markAsError(v.UrlCollection.Url, processorConfig.OriginCollection)
 					if err != nil {
 						app.Logger.Info(err.Error())
 						return
@@ -296,12 +289,12 @@ func (app *Crawler) CrawlPageDetailRecursive(collection string, total *int32, co
 					continue
 				}
 
-				app.saveProductDetail(res)
+				app.saveProductDetail(processorConfig.Entity, res)
 				if !app.isLocalEnv {
 					err := app.submitProductData(res)
 					if err != nil {
 						app.Logger.Fatal("Failed to submit product data to API Server: %v", err)
-						err := app.markAsError(v.UrlCollection.Url, collection)
+						err := app.markAsError(v.UrlCollection.Url, processorConfig.OriginCollection)
 						if err != nil {
 							app.Logger.Info(err.Error())
 							return
@@ -309,10 +302,12 @@ func (app *Crawler) CrawlPageDetailRecursive(collection string, total *int32, co
 					}
 				}
 
-				err := app.markAsComplete(v.UrlCollection.Url, collection)
-				if err != nil {
-					app.Logger.Error(err.Error())
-					continue
+				if !processorConfig.Preference.DoNotMarkAsComplete {
+					err := app.markAsComplete(v.UrlCollection.Url, processorConfig.OriginCollection)
+					if err != nil {
+						app.Logger.Error(err.Error())
+						continue
+					}
 				}
 				atomic.AddInt32(total, 1)
 			}
@@ -323,7 +318,7 @@ func (app *Crawler) CrawlPageDetailRecursive(collection string, total *int32, co
 		return
 	}
 	if len(newUrlCollections) > 0 && (app.isLocalEnv && atomic.LoadInt32(&counter) < int32(app.engine.DevCrawlLimit)) {
-		app.CrawlPageDetailRecursive(collection, total, counter, processedUrls, mustRequiredFields...)
+		app.crawlPageDetailRecursive(processorConfig, processedUrls, total, counter)
 	}
 }
 
@@ -348,19 +343,4 @@ func validateRequiredFields(product *ProductDetail, requiredFields []string) ([]
 		}
 	}
 	return invalidFields, unknownFields
-}
-
-// PageSelector adds a new URL selector to the crawler.
-func (app *Crawler) PageSelector(selector UrlSelector) *Crawler {
-	app.UrlSelectors = append(app.UrlSelectors, selector)
-	return app
-}
-
-// StartUrlCrawling initiates the URL crawling process for all added selectors.
-func (app *Crawler) StartUrlCrawling() *Crawler {
-	for _, selector := range app.UrlSelectors {
-		app.Collection(selector.ToCollection).
-			CrawlUrls(selector.FromCollection, selector)
-	}
-	return app
 }

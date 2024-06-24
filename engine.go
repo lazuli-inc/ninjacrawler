@@ -4,12 +4,6 @@ import (
 	"time"
 )
 
-type Proxy struct {
-	Server   string
-	Username string
-	Password string
-}
-
 type Engine struct {
 	BrowserType             string
 	ConcurrentLimit         int
@@ -25,15 +19,6 @@ type Engine struct {
 	WaitForDynamicRendering bool
 	SleepAfter              int
 }
-type FormInput struct {
-	Key string
-	Val string
-}
-type CookieAction struct {
-	ButtonText                  string
-	MustHaveSelectorAfterAction string
-	Fields                      []FormInput
-}
 
 func (app *Crawler) SetBrowserType(browserType string) *Crawler {
 	app.engine.BrowserType = browserType
@@ -47,6 +32,7 @@ func (app *Crawler) SetConcurrentLimit(concurrentLimit int) *Crawler {
 
 func (app *Crawler) IsDynamicPage(isDynamic bool) *Crawler {
 	app.engine.IsDynamic = isDynamic
+	app.toggleClient()
 	return app
 }
 

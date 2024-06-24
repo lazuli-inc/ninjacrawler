@@ -2,23 +2,53 @@ package ninjacrawler
 
 import (
 	"github.com/PuerkitoBio/goquery"
-	"github.com/playwright-community/playwright-go"
 	"reflect"
+	"strconv"
+	"strings"
 )
 
-type CrawlerContext struct {
-	App           *Crawler
-	Document      *goquery.Document
-	UrlCollection UrlCollection
-	Page          playwright.Page
+type Map map[string]interface{}
+
+// Get retrieves a nested value from the map using dot-separated path
+
+// Get retrieves a nested value from the map using a path with support for array indexing
+func (m Map) Get(path string) interface{} {
+	keys := parseKeys(path)
+	var result interface{} = m
+	for _, key := range keys {
+		switch val := result.(type) {
+		case Map:
+			result = val[key]
+		case map[string]interface{}:
+			result = val[key]
+		case []interface{}:
+			index, err := strconv.Atoi(key)
+			if err != nil || index < 0 || index >= len(val) {
+				return nil
+			}
+			result = val[index]
+		default:
+			return nil
+		}
+	}
+	return result
 }
 
-func (ctx *CrawlerContext) handleProductDetail() *ProductDetail {
+func parseKeys(path string) []string {
+	//path = strings.ReplaceAll(path, "]", "")
+	parts := strings.Split(path, ".")
+	keys := make([]string, len(parts))
+	for i, part := range parts {
+		keys[i] = part
+	}
+	return keys
+}
+
+func (ctx *CrawlerContext) handleProductDetail(processor interface{}) *ProductDetail {
 	app := ctx.App
 	document := ctx.Document
-
 	productDetail := &ProductDetail{}
-	productDetailSelector := reflect.ValueOf(app.ProductDetailSelector)
+	productDetailSelector := reflect.ValueOf(processor)
 
 	for i := 0; i < productDetailSelector.NumField(); i++ {
 		fieldValue := productDetailSelector.Field(i)
@@ -50,6 +80,41 @@ func (ctx *CrawlerContext) handleProductDetail() *ProductDetail {
 			}
 
 			reflect.ValueOf(productDetail).Elem().FieldByName(fieldName).Set(reflect.ValueOf(stringSlice))
+		default:
+			app.Logger.Error("Invalid %s CrawlerContext: %T", fieldName, v)
+		}
+	}
+
+	return productDetail
+}
+
+func (ctx *CrawlerContext) handleProductDetailApi(processor interface{}) *ProductDetail {
+	app := ctx.App
+
+	productDetail := &ProductDetail{}
+	productDetailSelector := reflect.ValueOf(processor)
+
+	for i := 0; i < productDetailSelector.NumField(); i++ {
+		fieldValue := productDetailSelector.Field(i)
+		fieldType := productDetailSelector.Type().Field(i)
+		fieldName := fieldType.Name
+
+		switch v := fieldValue.Interface().(type) {
+		case string:
+			property := fieldValue.Interface().(string)
+			result := ctx.ApiResponse.Get(property)
+			if result != nil {
+				reflect.ValueOf(productDetail).Elem().FieldByName(fieldName).Set(reflect.ValueOf(result))
+			}
+		case func(CrawlerContext) []AttributeItem:
+			result := fieldValue.Interface().(func(CrawlerContext) []AttributeItem)(*ctx)
+			reflect.ValueOf(productDetail).Elem().FieldByName(fieldName).Set(reflect.ValueOf(result))
+		case func(CrawlerContext) []string:
+			result := fieldValue.Interface().(func(CrawlerContext) []string)(*ctx)
+			reflect.ValueOf(productDetail).Elem().FieldByName(fieldName).Set(reflect.ValueOf(result))
+		case func(CrawlerContext) string:
+			result := fieldValue.Interface().(func(CrawlerContext) string)(*ctx)
+			reflect.ValueOf(productDetail).Elem().FieldByName(fieldName).SetString(result)
 		default:
 			app.Logger.Error("Invalid %s CrawlerContext: %T", fieldName, v)
 		}

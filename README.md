@@ -24,12 +24,12 @@ NinjaCrawler offers a robust set of features to make web crawling more efficient
 -   **Visual Monitoring Panel**: An upcoming feature to monitor crawling progress, logs, and sample data through a visual interface.
 -   **Early Site Structure Changed Detection**: An upcoming feature to Detect if Any website changed their exising structure .
 
+
 ## Installation
 
 To install the package, you need to have Go and Playwright set up. You can install the package via `go get`:
 
-
-    go get github.com/uzzalhcse/ninjacrawler
+    go get github.com/lazuli-inc/ninjacrawler
 
 
 ## Usage

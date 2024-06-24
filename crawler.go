@@ -219,7 +219,7 @@ func (app *Crawler) CrawlPageDetail(processorConfigs []ProcessorConfig) {
 		total := int32(0)
 		app.crawlPageDetailRecursive(processorConfig, processedUrls, &total, 0)
 		app.Logger.Info("Total %v %v Inserted ", atomic.LoadInt32(&total), processorConfig.OriginCollection)
-		exportProductDetailsToCSV(app, processorConfig.OriginCollection, 1)
+		exportProductDetailsToCSV(app, processorConfig.Entity, 1)
 	}
 }
 

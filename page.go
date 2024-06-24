@@ -72,7 +72,7 @@ func (ctx *CrawlerContext) handleProductDetail(processor interface{}) *ProductDe
 			reflect.ValueOf(productDetail).Elem().FieldByName(fieldName).SetString(result.(string))
 		case *MultiSelectors:
 			selectors := fieldValue.Interface().(*MultiSelectors)
-			result := handleMultiSelectors(document, selectors)
+			result := handleMultiSelectors(app, document, selectors)
 
 			var stringSlice []string
 			for _, v := range result {
@@ -128,14 +128,15 @@ func handleSingleSelector(document *goquery.Document, selector *SingleSelector) 
 	return txt
 }
 
-func handleMultiSelectors(document *goquery.Document, selectors *MultiSelectors) []interface{} {
+func handleMultiSelectors(app *Crawler, document *goquery.Document, selectors *MultiSelectors) []interface{} {
 	var items []interface{}
 
 	// Helper function to append images if the specified attribute exists
 	appendImages := func(selection *goquery.Selection, attr string) {
 		selection.Each(func(i int, s *goquery.Selection) {
 			if url, ok := s.Attr(attr); ok {
-				items = append(items, url)
+				fullUrl := app.GetFullUrl(url)
+				items = append(items, fullUrl)
 			}
 		})
 	}

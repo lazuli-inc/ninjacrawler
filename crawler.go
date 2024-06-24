@@ -118,6 +118,8 @@ func (app *Crawler) crawlWorker(ctx context.Context, dbCollection string, urlCha
 
 func (app *Crawler) CrawlUrls(processorConfigs []ProcessorConfig) {
 	for _, processorConfig := range processorConfigs {
+		overrideEngineDefaults(app.engine, &processorConfig.Engine)
+		app.toggleClient()
 		processedUrls := make(map[string]bool) // Track processed URLs
 		total := int32(0)
 		app.crawlUrlsRecursive(processorConfig, processedUrls, &total, 0)
@@ -211,6 +213,8 @@ func (app *Crawler) crawlUrlsRecursive(processorConfig ProcessorConfig, processe
 // It distributes the work among multiple goroutines and uses proxies if available.
 func (app *Crawler) CrawlPageDetail(processorConfigs []ProcessorConfig) {
 	for _, processorConfig := range processorConfigs {
+		overrideEngineDefaults(app.engine, &processorConfig.Engine)
+		app.toggleClient()
 		processedUrls := make(map[string]bool) // Track processed URLs
 		total := int32(0)
 		app.crawlPageDetailRecursive(processorConfig, processedUrls, &total, 0)

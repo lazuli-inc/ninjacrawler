@@ -117,7 +117,7 @@ func getDefaultEngine() Engine {
 		ConcurrentLimit:         1,
 		IsDynamic:               false,
 		WaitForDynamicRendering: false,
-		DevCrawlLimit:           50,
+		DevCrawlLimit:           100,
 		BlockResources:          false,
 		JavaScriptEnabled:       true,
 		BlockedURLs: []string{

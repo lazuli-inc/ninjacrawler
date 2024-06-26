@@ -238,3 +238,40 @@ func contains(slice []string, item string) bool {
 	}
 	return false
 }
+
+func ExecuteCommand(command string, args []string) string {
+	cmd := exec.Command(command, args...)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return ""
+	}
+
+	return string(output)
+}
+
+func RunningFromGCP() bool {
+	output := ExecuteCommand("uname", []string{"-a"})
+	return strings.Contains(output, "-gcp")
+}
+func StopInstance() {
+	instanceName := GetComputeInstanceName()
+	zoneName := GetComputeInstanceZoneName()
+	command := []string{"gcloud", "compute", "instances", "stop", instanceName, "--zone", zoneName}
+
+	ExecuteCommand(command[0], command[1:])
+}
+func GetComputeInstanceName() string {
+	instanceNameCommand := []string{"curl", "-s", "-H", "Metadata-Flavor: Google", "http://metadata.google.internal/computeMetadata/v1/instance/name"}
+	instanceName := ExecuteCommand(instanceNameCommand[0], instanceNameCommand[1:])
+
+	return instanceName
+}
+
+func GetComputeInstanceZoneName() string {
+	zoneNameCommand := []string{"curl", "-s", "-H", "Metadata-Flavor: Google", "http://metadata.google.internal/computeMetadata/v1/instance/zone"}
+	zoneNameWithPath := ExecuteCommand(zoneNameCommand[0], zoneNameCommand[1:])
+	zoneName := strings.Trim(ExecuteCommand("basename", []string{zoneNameWithPath}), " \n")
+
+	return zoneName
+}

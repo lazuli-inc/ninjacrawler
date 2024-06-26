@@ -25,6 +25,10 @@ func (app *Crawler) getHttpClient() *http.Client {
 func (app *Crawler) NavigateToStaticURL(client *http.Client, urlString string, proxyServer Proxy) (*goquery.Document, error) {
 
 	body, err := app.getResponseBody(client, urlString, proxyServer)
+
+	if err != nil {
+		return nil, err
+	}
 	document, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
 
 	if err != nil {

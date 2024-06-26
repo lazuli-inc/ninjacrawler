@@ -61,10 +61,10 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 			if err != nil {
 				markAsError := app.markAsError(urlCollection.Url, processorConfig.OriginCollection)
 				if markAsError != nil {
-					app.Logger.Info(markAsError.Error())
+					app.Logger.Error(markAsError.Error())
 					return
 				}
-				app.Logger.Info(err.Error())
+				app.Logger.Error(err.Error())
 				continue
 			}
 

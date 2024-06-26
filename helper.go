@@ -1,12 +1,15 @@
 package ninjacrawler
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/playwright-community/playwright-go"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"plugin"
 	"strings"
 	"time"
 )
@@ -170,4 +173,68 @@ func (app *Crawler) getHtmlFromPage(page playwright.Page) string {
 		app.Logger.Error("failed to get html from page", "Error", err)
 	}
 	return html
+}
+
+func (app *Crawler) LoadSites(filename string) ([]CrawlerConfig, error) {
+	var sites []CrawlerConfig
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, fmt.Errorf("error opening file: %w", err)
+	}
+	defer file.Close()
+
+	err = json.NewDecoder(file).Decode(&sites)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding JSON: %w", err)
+	}
+
+	return sites, nil
+}
+
+func (app *Crawler) buildPlugin(path, filename, functionName string) {
+	src := filepath.Join(path, filename)
+	dest := filepath.Join(path, functionName+".so")
+
+	if err := app.generatePlugin(src, dest); err != nil {
+		fmt.Printf("Failed to build plugin %s: %v\n", functionName, err)
+		os.Exit(1)
+	}
+
+	fmt.Println("All plugins built successfully.")
+}
+func (app *Crawler) generatePlugin(src, dest string) error {
+	cmd := exec.Command("go", "build", "-buildmode=plugin", "-o", dest, src)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("build failed: %w", err)
+	}
+
+	return nil
+}
+
+func loadHandler(pluginPath, funcName string) (plugin.Symbol, error) {
+	// Load the package
+	pkg, err := plugin.Open(pluginPath)
+	if err != nil {
+		return nil, fmt.Errorf("error opening package: %w", err)
+	}
+
+	// Look for the function by name in the package
+	fnSymbol, err := pkg.Lookup(funcName)
+	if err != nil {
+		return nil, fmt.Errorf("function %s not found in package %s: %w", funcName, pluginPath, err)
+	}
+
+	return fnSymbol, nil
+}
+func contains(slice []string, item string) bool {
+	for _, v := range slice {
+		if v == item {
+			return true
+		}
+	}
+	return false
 }

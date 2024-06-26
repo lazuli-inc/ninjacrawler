@@ -6,13 +6,20 @@ import (
 )
 
 type ProcessorConfig struct {
-	Entity           string
-	OriginCollection string
+	Entity           string `json:"entity"`
+	OriginCollection string `json:"originCollection"`
 	Processor        interface{}
-	Preference       Preference
-	Engine           Engine
+	Preference       Preference    `json:"preference"`
+	Engine           Engine        `json:"engine"`
+	ProcessorType    ProcessorType `json:"processor_type"`
 }
-
+type ProcessorType struct {
+	Handle      *Handle     `json:"handle"`
+	UrlSelector UrlSelector `json:"url_selector"`
+}
+type AppPreference struct {
+	ExcludeUniqueUrlEntities []string
+}
 type Preference struct {
 	DoNotMarkAsComplete bool
 	ValidationRules     []string

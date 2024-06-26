@@ -26,10 +26,12 @@ type Crawler struct {
 	Logger                *defaultLogger
 	httpClient            *http.Client
 	isLocalEnv            bool
+	preference            *AppPreference
 }
 
 func NewCrawler(name, url string, engines ...Engine) *Crawler {
 
+	defaultPreference := getDefaultPreference()
 	defaultEngine := getDefaultEngine()
 	if len(engines) > 0 {
 		eng := engines[0]
@@ -50,6 +52,7 @@ func NewCrawler(name, url string, engines ...Engine) *Crawler {
 	crawler.Client = crawler.mustGetClient()
 	crawler.BaseUrl = crawler.getBaseUrl(url)
 	crawler.isLocalEnv = config.GetString("APP_ENV") == "local"
+	crawler.preference = &defaultPreference
 	return crawler
 }
 
@@ -99,6 +102,15 @@ func (app *Crawler) GetBaseCollection() string {
 	return baseCollection
 }
 
+func (app *Crawler) SetPreference(preference AppPreference) *Crawler {
+
+	defaultPreference := getDefaultPreference()
+
+	overridePreferenceDefaults(&defaultPreference, &preference)
+	app.preference = &defaultPreference
+	return app
+}
+
 func (app *Crawler) Handle(handler Handler) {
 	defer app.Stop() // Ensure Stop is called after handlers
 	app.Start()
@@ -108,6 +120,22 @@ func (app *Crawler) Handle(handler Handler) {
 	}
 	if handler.ProductHandler != nil {
 		handler.ProductHandler(app)
+	}
+}
+func (app *Crawler) AutoHandle(configs []ProcessorConfig) {
+	defer app.Stop() // Ensure Stop is called after handlers
+	app.Start()
+
+	app.CrawlUrls(configs)
+}
+func getDefaultPreference() AppPreference {
+	return AppPreference{
+		ExcludeUniqueUrlEntities: []string{},
+	}
+}
+func overridePreferenceDefaults(defaultPreference *AppPreference, preference *AppPreference) {
+	if len(preference.ExcludeUniqueUrlEntities) > 0 {
+		defaultPreference.ExcludeUniqueUrlEntities = preference.ExcludeUniqueUrlEntities
 	}
 }
 

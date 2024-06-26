@@ -38,7 +38,9 @@ func (app *Crawler) mustGetClient() *mongo.Client {
 // // getCollection returns a collection from the database and ensures unique indexing.
 func (app *Crawler) getCollection(collectionName string) *mongo.Collection {
 	collection := app.Database(app.Name).Collection(collectionName)
-	app.ensureUniqueIndex(collection)
+	if !contains(app.preference.ExcludeUniqueUrlEntities, collectionName) {
+		app.ensureUniqueIndex(collection)
+	}
 	return collection
 }
 
@@ -159,6 +161,26 @@ func (app *Crawler) markAsComplete(url string, dbCollection string) error {
 	_, err := collection.UpdateOne(context.TODO(), filter, update)
 	if err != nil {
 		return fmt.Errorf("[:%s:%s] could not mark as Complete: Please check this [Error]: %v", dbCollection, url, err)
+	}
+	return nil
+}
+func (app *Crawler) SyncCurrentPageUrl(url, currentPageUrl string, dbCollection string) error {
+
+	timeNow := time.Now()
+
+	collection := app.getCollection(dbCollection)
+
+	filter := bson.D{{Key: "url", Value: url}}
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "current_page_url", Value: currentPageUrl},
+			{Key: "updated_at", Value: &timeNow},
+		}},
+	}
+
+	_, err := collection.UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		return fmt.Errorf("[:%s:%s] could not sync currentpage [Error]: %v", dbCollection, url, err)
 	}
 	return nil
 }

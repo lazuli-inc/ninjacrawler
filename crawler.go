@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func (app *Crawler) crawlWorker(ctx context.Context, dbCollection string, urlChan <-chan UrlCollection, resultChan chan<- interface{}, proxy Proxy, processor interface{}, isLocalEnv bool, counter *int32) {
+func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorConfig, urlChan <-chan UrlCollection, resultChan chan<- interface{}, proxy Proxy, isLocalEnv bool, counter *int32) {
 	var page playwright.Page
 	var browser playwright.Browser
 	var err error
@@ -37,25 +37,29 @@ func (app *Crawler) crawlWorker(ctx context.Context, dbCollection string, urlCha
 			if !more {
 				return
 			}
+			crawlableUrl := urlCollection.Url
+			if urlCollection.CurrentPageUrl != "" {
+				crawlableUrl = urlCollection.CurrentPageUrl
+			}
 
 			if proxy.Server != "" {
-				app.Logger.Info("Crawling :%s: %s using Proxy %s", dbCollection, urlCollection.Url, proxy.Server)
+				app.Logger.Info("Crawling :%s: %s using Proxy %s", processorConfig.OriginCollection, crawlableUrl, proxy.Server)
 			} else {
-				app.Logger.Info("Crawling :%s: %s", dbCollection, urlCollection.Url)
+				app.Logger.Info("Crawling :%s: %s", processorConfig.OriginCollection, crawlableUrl)
 			}
 			if app.engine.IsDynamic {
-				doc, err = app.NavigateToURL(page, urlCollection.Url)
+				doc, err = app.NavigateToURL(page, crawlableUrl)
 			} else {
-				switch processor.(type) {
+				switch processorConfig.Processor.(type) {
 				case ProductDetailApi:
-					apiResponse, err = app.NavigateToApiURL(app.httpClient, urlCollection.Url, proxy)
+					apiResponse, err = app.NavigateToApiURL(app.httpClient, crawlableUrl, proxy)
 				default:
-					doc, err = app.NavigateToStaticURL(app.httpClient, urlCollection.Url, proxy)
+					doc, err = app.NavigateToStaticURL(app.httpClient, crawlableUrl, proxy)
 				}
 			}
 
 			if err != nil {
-				markAsError := app.markAsError(urlCollection.Url, dbCollection)
+				markAsError := app.markAsError(urlCollection.Url, processorConfig.OriginCollection)
 				if markAsError != nil {
 					app.Logger.Info(markAsError.Error())
 					return
@@ -73,20 +77,89 @@ func (app *Crawler) crawlWorker(ctx context.Context, dbCollection string, urlCha
 			}
 
 			var results interface{}
-			switch v := processor.(type) {
+			switch v := processorConfig.Processor.(type) {
 			case func(CrawlerContext) []UrlCollection:
-				results = v(crawlerCtx)
+				var collections []UrlCollection
+				collections = v(crawlerCtx)
+
+				for _, item := range collections {
+					if item.Parent == "" && processorConfig.OriginCollection != baseCollection {
+						app.Logger.Fatal("Missing Parent Url, Invalid OriginCollection: %v", item)
+						continue
+					}
+				}
+				app.insert(processorConfig.Entity, collections, urlCollection.Url)
+				if !processorConfig.Preference.DoNotMarkAsComplete {
+					err := app.markAsComplete(urlCollection.Url, processorConfig.OriginCollection)
+					if err != nil {
+						app.Logger.Error(err.Error())
+						continue
+					}
+				}
+				atomic.AddInt32(counter, 1)
+			case func(CrawlerContext, func([]UrlCollection, string)) error:
+				handleErr := v(crawlerCtx, func(collections []UrlCollection, currentPageUrl string) {
+					for _, item := range collections {
+						if item.Parent == "" && processorConfig.OriginCollection != baseCollection {
+							app.Logger.Fatal("Missing Parent Url, Invalid OriginCollection: %v", item)
+							continue
+						}
+					}
+					if currentPageUrl != "" && currentPageUrl != urlCollection.Url {
+						currentPageErr := app.SyncCurrentPageUrl(urlCollection.Url, currentPageUrl, processorConfig.OriginCollection)
+						if currentPageErr != nil {
+							app.Logger.Fatal(currentPageErr.Error())
+							return
+						}
+					}
+					app.insert(processorConfig.Entity, collections, urlCollection.Url)
+					atomic.AddInt32(counter, 1)
+				})
+				if handleErr != nil {
+					markAsError := app.markAsError(urlCollection.Url, processorConfig.OriginCollection)
+					if markAsError != nil {
+						app.Logger.Info(markAsError.Error())
+						return
+					}
+					app.Logger.Error(handleErr.Error())
+				} else {
+					if !processorConfig.Preference.DoNotMarkAsComplete {
+						err := app.markAsComplete(urlCollection.Url, processorConfig.OriginCollection)
+						if err != nil {
+							app.Logger.Error(err.Error())
+							continue
+						}
+					}
+				}
 
 			case UrlSelector:
-				results = app.processDocument(doc, v, urlCollection)
+				var collections []UrlCollection
+				collections = app.processDocument(doc, v, urlCollection)
+
+				for _, item := range collections {
+					if item.Parent == "" && processorConfig.OriginCollection != baseCollection {
+						app.Logger.Fatal("Missing Parent Url, Invalid OriginCollection: %v", item)
+						continue
+					}
+				}
+				app.insert(processorConfig.Entity, collections, urlCollection.Url)
+
+				if !processorConfig.Preference.DoNotMarkAsComplete {
+					err := app.markAsComplete(urlCollection.Url, processorConfig.OriginCollection)
+					if err != nil {
+						app.Logger.Error(err.Error())
+						continue
+					}
+				}
+				atomic.AddInt32(counter, 1)
 
 			case ProductDetailSelector:
-				results = crawlerCtx.handleProductDetail(processor)
+				results = crawlerCtx.handleProductDetail(processorConfig.Processor)
 			case ProductDetailApi:
-				results = crawlerCtx.handleProductDetailApi(processor)
+				results = crawlerCtx.handleProductDetailApi(processorConfig.Processor)
 
 			default:
-				app.Logger.Fatal("Unsupported processor type: %T", processor)
+				app.Logger.Fatal("Unsupported processor type: %T", processorConfig.Processor)
 			}
 
 			crawlResult := CrawlResult{
@@ -166,7 +239,7 @@ func (app *Crawler) crawlUrlsRecursive(processorConfig ProcessorConfig, processe
 		wg.Add(1)
 		go func(proxy Proxy) {
 			defer wg.Done()
-			app.crawlWorker(ctx, processorConfig.OriginCollection, urlChan, resultChan, proxy, processorConfig.Processor, app.isLocalEnv, &counter)
+			app.crawlWorker(ctx, processorConfig, urlChan, resultChan, proxy, app.isLocalEnv, &counter)
 		}(proxy)
 	}
 
@@ -180,20 +253,6 @@ func (app *Crawler) crawlUrlsRecursive(processorConfig ProcessorConfig, processe
 		case CrawlResult:
 			switch res := v.Results.(type) {
 			case []UrlCollection:
-				for _, item := range res {
-					if item.Parent == "" && processorConfig.OriginCollection != baseCollection {
-						app.Logger.Fatal("Missing Parent Url, Invalid OriginCollection: %v", item)
-						continue
-					}
-				}
-				app.insert(processorConfig.Entity, res, v.UrlCollection.Url)
-				if !processorConfig.Preference.DoNotMarkAsComplete {
-					err := app.markAsComplete(v.UrlCollection.Url, processorConfig.OriginCollection)
-					if err != nil {
-						app.Logger.Error(err.Error())
-						continue
-					}
-				}
 				atomic.AddInt32(total, int32(len(res)))
 				app.Logger.Info("(%d) :%s: Found From [%s => %s]", len(res), processorConfig.Entity, processorConfig.OriginCollection, v.UrlCollection.Url)
 			}
@@ -260,7 +319,7 @@ func (app *Crawler) crawlPageDetailRecursive(processorConfig ProcessorConfig, pr
 		wg.Add(1)
 		go func(proxy Proxy) {
 			defer wg.Done()
-			app.crawlWorker(ctx, processorConfig.OriginCollection, urlChan, resultChan, proxy, processorConfig.Processor, app.isLocalEnv, &counter)
+			app.crawlWorker(ctx, processorConfig, urlChan, resultChan, proxy, app.isLocalEnv, &counter)
 		}(proxy)
 	}
 

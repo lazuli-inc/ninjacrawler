@@ -3,15 +3,20 @@ package ninjacrawler
 import "github.com/PuerkitoBio/goquery"
 
 type UrlSelector struct {
-	Selector       string
-	SingleResult   bool
-	FindSelector   string
-	Attr           string
-	ToCollection   string
-	FromCollection string
+	Selector       string `json:"selector"`
+	SingleResult   bool   `json:"single_result"`
+	FindSelector   string `json:"find_selector"`
+	Attr           string `json:"attr"`
+	ToCollection   string `json:"to_collection"`
+	FromCollection string `json:"from_collection"`
 	Handler        func(urlCollection UrlCollection, fullUrl string, a *goquery.Selection) (string, map[string]interface{})
+	Handle         *Handle `json:"handle"`
 }
-
+type Handle struct {
+	Namespace    string `json:"namespace"`
+	Filename     string `json:"filename"`
+	FunctionName string `json:"function_name"`
+}
 type SingleSelector struct {
 	Selector string
 }

@@ -1,10 +1,14 @@
 package ninjacrawler
 
 import (
+	"cloud.google.com/go/compute/metadata"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/playwright-community/playwright-go"
+	"google.golang.org/api/compute/v1"
+	"google.golang.org/api/option"
 	"net/url"
 	"os"
 	"os/exec"
@@ -250,28 +254,37 @@ func ExecuteCommand(command string, args []string) string {
 	return string(output)
 }
 
-func RunningFromGCP() bool {
-	output := ExecuteCommand("uname", []string{"-a"})
-	return strings.Contains(output, "-gcp")
-}
-func StopInstance() {
-	instanceName := GetComputeInstanceName()
-	zoneName := GetComputeInstanceZoneName()
-	command := []string{"gcloud", "compute", "instances", "stop", instanceName, "--zone", zoneName}
+func (app *Crawler) StopInstanceIfRunningFromGCP() {
+	if metadata.OnGCE() {
+		app.Logger.Warn("Running on GCP VM")
 
-	ExecuteCommand(command[0], command[1:])
-}
-func GetComputeInstanceName() string {
-	instanceNameCommand := []string{"curl", "-s", "-H", "Metadata-Flavor: Google", "http://metadata.google.internal/computeMetadata/v1/instance/name"}
-	instanceName := ExecuteCommand(instanceNameCommand[0], instanceNameCommand[1:])
+		projectID, err := metadata.ProjectID()
+		if err != nil {
+			app.Logger.Warn("Failed to get project ID: %v", err)
+		}
 
-	return instanceName
-}
+		zone, err := metadata.Zone()
+		if err != nil {
+			app.Logger.Warn("Failed to get zone: %v", err)
+		}
 
-func GetComputeInstanceZoneName() string {
-	zoneNameCommand := []string{"curl", "-s", "-H", "Metadata-Flavor: Google", "http://metadata.google.internal/computeMetadata/v1/instance/zone"}
-	zoneNameWithPath := ExecuteCommand(zoneNameCommand[0], zoneNameCommand[1:])
-	zoneName := strings.Trim(ExecuteCommand("basename", []string{zoneNameWithPath}), " \n")
+		instanceID, err := metadata.InstanceID()
+		if err != nil {
+			app.Logger.Warn("Failed to get instance ID: %v", err)
+		}
 
-	return zoneName
+		ctx := context.Background()
+		computeService, err := compute.NewService(ctx, option.WithScopes(compute.CloudPlatformScope))
+		if err != nil {
+			app.Logger.Warn("Failed to create compute service: %v", err)
+		}
+
+		// Stop the VM
+		_, err = computeService.Instances.Stop(projectID, zone, instanceID).Context(ctx).Do()
+		if err != nil {
+			app.Logger.Warn("Failed to stop instance: %v", err)
+		}
+
+		app.Logger.Info("VM has been stopped")
+	}
 }

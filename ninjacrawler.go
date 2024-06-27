@@ -47,7 +47,7 @@ func (ninja *NinjaCrawler) Start() {
 
 	wg.Wait()
 
-	ninja.App.StopInstanceIfRunningFromGCP()
+	StopInstanceIfRunningFromGCP()
 }
 func (ninja *NinjaCrawler) StartPilot() {
 	var wg sync.WaitGroup
@@ -63,7 +63,7 @@ func (ninja *NinjaCrawler) StartPilot() {
 
 	wg.Wait()
 
-	ninja.App.StopInstanceIfRunningFromGCP()
+	StopInstanceIfRunningFromGCP()
 }
 func (ninja *NinjaCrawler) RunAutoPilot() {
 	sites, err := ninja.App.LoadSites("sites.json")

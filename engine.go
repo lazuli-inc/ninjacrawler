@@ -75,9 +75,9 @@ func (app *Crawler) SetSleepAfter(sleepAfter int) *Crawler {
 func (e *Engine) getProxyList() []Proxy {
 	var proxies []Proxy
 	proxies = append(proxies, Proxy{
-		Server: "http://34.146.11.125:3000", // Proxy-server-1
+		Server: "http://35.243.121.253:3000", // Proxy-server-1
 	}, Proxy{
-		Server: "http://34.146.155.165:3000", // Proxy-server-2
+		Server: "http://34.84.85.49:3000", // Proxy-server-2
 	}, Proxy{
 		Server: "http://34.146.38.231:3000", // Proxy-server-3
 	})

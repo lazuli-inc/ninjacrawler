@@ -9,6 +9,7 @@ import (
 	"github.com/playwright-community/playwright-go"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
+	"log"
 	"net/url"
 	"os"
 	"os/exec"
@@ -254,37 +255,51 @@ func ExecuteCommand(command string, args []string) string {
 	return string(output)
 }
 
-func (app *Crawler) StopInstanceIfRunningFromGCP() {
+func StopInstanceIfRunningFromGCP() {
 	if metadata.OnGCE() {
-		app.Logger.Warn("Running on GCP VM")
+		fmt.Println("Running on GCP VM")
 
 		projectID, err := metadata.ProjectID()
 		if err != nil {
-			app.Logger.Warn("Failed to get project ID: %v", err)
+			log.Fatalf("Failed to get project ID: %v", err)
 		}
 
 		zone, err := metadata.Zone()
 		if err != nil {
-			app.Logger.Warn("Failed to get zone: %v", err)
+			log.Fatalf("Failed to get zone: %v", err)
 		}
 
 		instanceID, err := metadata.InstanceID()
 		if err != nil {
-			app.Logger.Warn("Failed to get instance ID: %v", err)
+			log.Fatalf("Failed to get instance ID: %v", err)
 		}
 
 		ctx := context.Background()
 		computeService, err := compute.NewService(ctx, option.WithScopes(compute.CloudPlatformScope))
 		if err != nil {
-			app.Logger.Warn("Failed to create compute service: %v", err)
+			log.Fatalf("Failed to create compute service: %v", err)
 		}
 
 		// Stop the VM
 		_, err = computeService.Instances.Stop(projectID, zone, instanceID).Context(ctx).Do()
 		if err != nil {
-			app.Logger.Warn("Failed to stop instance: %v", err)
+			log.Fatalf("Failed to stop instance: %v", err)
 		}
 
-		app.Logger.Info("VM has been stopped")
+		fmt.Println("VM has been stopped")
 	}
+}
+func GetComputeInstanceName() string {
+	instanceNameCommand := []string{"curl", "-s", "-H", "Metadata-Flavor: Google", "http://metadata.google.internal/computeMetadata/v1/instance/name"}
+	instanceName := ExecuteCommand(instanceNameCommand[0], instanceNameCommand[1:])
+
+	return instanceName
+}
+
+func GetComputeInstanceZoneName() string {
+	zoneNameCommand := []string{"curl", "-s", "-H", "Metadata-Flavor: Google", "http://metadata.google.internal/computeMetadata/v1/instance/zone"}
+	zoneNameWithPath := ExecuteCommand(zoneNameCommand[0], zoneNameCommand[1:])
+	zoneName := strings.Trim(ExecuteCommand("basename", []string{zoneNameWithPath}), " \n")
+
+	return zoneName
 }

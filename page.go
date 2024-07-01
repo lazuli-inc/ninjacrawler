@@ -129,14 +129,36 @@ func handleSingleSelector(document *goquery.Document, selector *SingleSelector) 
 }
 
 func handleMultiSelectors(app *Crawler, document *goquery.Document, selectors *MultiSelectors) []interface{} {
-	var items []interface{}
+	items := []string{}
+	itemSet := make(map[string]struct{})
 
 	// Helper function to append images if the specified attribute exists
 	appendImages := func(selection *goquery.Selection, attr string) {
 		selection.Each(func(i int, s *goquery.Selection) {
 			if url, ok := s.Attr(attr); ok {
 				fullUrl := app.GetFullUrl(url)
-				items = append(items, fullUrl)
+
+				// Check if the URL contains any excluded strings
+				excluded := false
+				for _, exclude := range selectors.ExcludeString {
+					if strings.Contains(fullUrl, exclude) {
+						excluded = true
+						break
+					}
+				}
+				if excluded {
+					return
+				}
+
+				// Add to items if unique or uniqueness is not enforced
+				if selectors.IsUnique {
+					if _, exists := itemSet[fullUrl]; !exists {
+						itemSet[fullUrl] = struct{}{}
+						items = append(items, fullUrl)
+					}
+				} else {
+					items = append(items, fullUrl)
+				}
 			}
 		})
 	}
@@ -146,5 +168,11 @@ func handleMultiSelectors(app *Crawler, document *goquery.Document, selectors *M
 		appendImages(document.Find(selector.Query), selector.Attr)
 	}
 
-	return items
+	// Convert items to []interface{}
+	var result []interface{}
+	for _, item := range items {
+		result = append(result, item)
+	}
+
+	return result
 }

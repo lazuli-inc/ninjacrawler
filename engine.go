@@ -18,6 +18,7 @@ type Engine struct {
 	Timeout                 time.Duration
 	WaitForDynamicRendering bool
 	SleepAfter              int
+	MaxRetryAttempts        int
 }
 
 func (app *Crawler) SetBrowserType(browserType string) *Crawler {

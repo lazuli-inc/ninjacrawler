@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"plugin"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -289,17 +290,6 @@ func StopInstanceIfRunningFromGCP() {
 		fmt.Println("VM has been stopped")
 	}
 }
-func GetComputeInstanceName() string {
-	instanceNameCommand := []string{"curl", "-s", "-H", "Metadata-Flavor: Google", "http://metadata.google.internal/computeMetadata/v1/instance/name"}
-	instanceName := ExecuteCommand(instanceNameCommand[0], instanceNameCommand[1:])
-
-	return instanceName
-}
-
-func GetComputeInstanceZoneName() string {
-	zoneNameCommand := []string{"curl", "-s", "-H", "Metadata-Flavor: Google", "http://metadata.google.internal/computeMetadata/v1/instance/zone"}
-	zoneNameWithPath := ExecuteCommand(zoneNameCommand[0], zoneNameCommand[1:])
-	zoneName := strings.Trim(ExecuteCommand("basename", []string{zoneNameWithPath}), " \n")
-
-	return zoneName
+func (app *Crawler) ToNumericsString(str string) string {
+	return regexp.MustCompile(`[^0-9]`).ReplaceAllString(str, "")
 }

@@ -28,7 +28,9 @@ type Selector struct {
 }
 
 type MultiSelectors struct {
-	Selectors []Selector // Array of selectors
+	Selectors     []Selector // Array of selectors
+	ExcludeString []string
+	IsUnique      bool
 }
 
 type ProductDetailSelector struct {

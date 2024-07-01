@@ -189,7 +189,7 @@ func (app *Crawler) SyncCurrentPageUrl(url, currentPageUrl string, dbCollection 
 func (app *Crawler) getUrlsFromCollection(collection string) []string {
 	filterCondition := bson.D{
 		{Key: "status", Value: false},
-		{Key: "attempts", Value: bson.D{{Key: "$lt", Value: 5}}},
+		{Key: "attempts", Value: bson.D{{Key: "$lt", Value: app.engine.MaxRetryAttempts}}},
 	}
 	return extractUrls(filterData(filterCondition, app.getCollection(collection)))
 }
@@ -198,7 +198,7 @@ func (app *Crawler) getUrlsFromCollection(collection string) []string {
 func (app *Crawler) getUrlCollections(collection string) []UrlCollection {
 	filterCondition := bson.D{
 		{Key: "status", Value: false},
-		{Key: "attempts", Value: bson.D{{Key: "$lt", Value: 5}}},
+		{Key: "attempts", Value: bson.D{{Key: "$lt", Value: app.engine.MaxRetryAttempts}}},
 	}
 	return app.filterUrlData(filterCondition, app.getCollection(collection))
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -18,7 +20,10 @@ func (app *Crawler) CrawlPageDetail(processorConfigs []ProcessorConfig) {
 		total := int32(0)
 		app.crawlPageDetailRecursive(processorConfig, processedUrls, &total, 0)
 		app.Logger.Info("Total %v %v Inserted ", atomic.LoadInt32(&total), processorConfig.OriginCollection)
-		exportProductDetailsToCSV(app, processorConfig.Entity, 1)
+		if !app.isLocalEnv {
+			app.Logger.Info("Exporting %s to CSV", processorConfig.Entity)
+			exportProductDetailsToCSV(app, processorConfig.Entity, 1)
+		}
 	}
 }
 
@@ -79,6 +84,15 @@ func (app *Crawler) crawlPageDetailRecursive(processorConfig ProcessorConfig, pr
 					continue
 				}
 				if len(invalidFields) > 0 {
+					app.Logger.Error("Validation failed: %v\n", invalidFields)
+					err := app.markAsError(v.UrlCollection.Url, processorConfig.OriginCollection)
+					if err != nil {
+						app.Logger.Info(err.Error())
+						continue
+					}
+					continue
+				}
+				if len(invalidFields) > 0 {
 					html, _ := v.Document.Html()
 					if app.engine.IsDynamic {
 						html = app.getHtmlFromPage(v.Page)
@@ -130,22 +144,67 @@ func (app *Crawler) crawlPageDetailRecursive(processorConfig ProcessorConfig, pr
 
 // validateRequiredFields checks if the required fields are non-empty in the ProductDetail struct.
 // Returns two slices: one for invalid fields and one for unknown fields.
-func validateRequiredFields(product *ProductDetail, requiredFields []string) ([]string, []string) {
+func validateRequiredFields(product *ProductDetail, validationRules []string) ([]string, []string) {
 	var invalidFields []string
 	var unknownFields []string
 
 	v := reflect.ValueOf(*product)
 	t := v.Type()
 
-	for _, field := range requiredFields {
+	for _, rule := range validationRules {
+		parts := strings.Split(rule, "|")
+		field := parts[0]
+		rules := parts[1:]
+
 		f, ok := t.FieldByName(field)
 		if !ok {
 			unknownFields = append(unknownFields, field)
 			continue
 		}
+
 		fieldValue := v.FieldByName(field)
-		if fieldValue.Kind() == reflect.String && fieldValue.String() == "" {
-			invalidFields = append(invalidFields, f.Name)
+		fieldValueStr := fmt.Sprintf("%v", fieldValue.Interface())
+		if fieldValueStr == "" {
+			invalidFields = append(invalidFields, fmt.Sprintf("%s: required", f.Name))
+		}
+		for _, r := range rules {
+			ruleParts := strings.SplitN(r, ":", 2)
+			ruleName := ruleParts[0]
+			ruleValue := ""
+			if len(ruleParts) > 1 {
+				ruleValue = ruleParts[1]
+			}
+
+			switch ruleName {
+			case "required":
+				if fieldValueStr == "" {
+					invalidFields = append(invalidFields, fmt.Sprintf("%s: required", f.Name))
+				}
+			case "string":
+				if fieldValue.Kind() != reflect.String {
+					invalidFields = append(invalidFields, fmt.Sprintf("%s: not a string", f.Name))
+				}
+			case "max":
+				maxLength, err := strconv.Atoi(ruleValue)
+				if err == nil && len(fieldValueStr) > maxLength {
+					invalidFields = append(invalidFields, fmt.Sprintf("%s: exceeds max length of %d", f.Name, maxLength))
+				}
+			case "trim":
+				if strings.TrimSpace(fieldValueStr) != fieldValueStr {
+					invalidFields = append(invalidFields, fmt.Sprintf("%s: not trimmed", f.Name))
+				}
+			case "blacklists":
+				excludeValues := strings.Split(ruleValue, ",")
+				for _, excludeValue := range excludeValues {
+					excludeValue = strings.TrimSpace(excludeValue)
+					if fieldValueStr == excludeValue {
+						invalidFields = append(invalidFields, fmt.Sprintf("%s: blacklist value '%s'", f.Name, excludeValue))
+						break
+					}
+				}
+			// Add more cases for other validation rules as needed
+			default:
+			}
 		}
 	}
 	return invalidFields, unknownFields

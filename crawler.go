@@ -19,7 +19,7 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 	if app.engine.IsDynamic {
 		browser, page, err = app.GetBrowserPage(app.pw, app.engine.BrowserType, proxy)
 		if err != nil {
-			app.Logger.Fatal("failed to initialize browser with Proxy: %v\n", err)
+			app.Logger.Fatal(err.Error())
 		}
 		defer browser.Close()
 		defer page.Close()
@@ -62,7 +62,7 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 					app.Logger.Error(markAsError.Error())
 					return
 				}
-				app.Logger.Error(err.Error())
+				app.Logger.Fatal(err.Error())
 				continue
 			}
 
@@ -96,6 +96,7 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 				}
 				atomic.AddInt32(counter, 1)
 			case func(CrawlerContext, func([]UrlCollection, string)) error:
+				shouldMarkAsComplete := true
 				handleErr := v(crawlerCtx, func(collections []UrlCollection, currentPageUrl string) {
 					for _, item := range collections {
 						if item.Parent == "" && processorConfig.OriginCollection != baseCollection {
@@ -104,12 +105,14 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 						}
 					}
 					if currentPageUrl != "" && currentPageUrl != urlCollection.Url {
+						shouldMarkAsComplete = false
 						currentPageErr := app.SyncCurrentPageUrl(urlCollection.Url, currentPageUrl, processorConfig.OriginCollection)
 						if currentPageErr != nil {
 							app.Logger.Fatal(currentPageErr.Error())
 							return
 						}
 					} else {
+						shouldMarkAsComplete = true
 						atomic.AddInt32(counter, 1)
 					}
 					app.insert(processorConfig.Entity, collections, urlCollection.Url)
@@ -122,7 +125,7 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 					}
 					app.Logger.Error(handleErr.Error())
 				} else {
-					if !processorConfig.Preference.DoNotMarkAsComplete {
+					if !processorConfig.Preference.DoNotMarkAsComplete && shouldMarkAsComplete {
 						err := app.markAsComplete(urlCollection.Url, processorConfig.OriginCollection)
 						if err != nil {
 							app.Logger.Error(err.Error())
@@ -170,12 +173,16 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 
 			select {
 			case resultChan <- crawlResult:
+				if isLocalEnv && atomic.LoadInt32(counter) >= int32(app.engine.DevCrawlLimit) {
+					//app.Logger.Warn("Dev Crawl limit %d reached!...", atomic.LoadInt32(counter))
+					return
+				}
 				atomic.AddInt32(counter, 1)
 			default:
 				app.Logger.Info("Channel is full, dropping Item")
 			}
 			if isLocalEnv && atomic.LoadInt32(counter) >= int32(app.engine.DevCrawlLimit) {
-				app.Logger.Warn("Dev Crawl limit %d reached!", atomic.LoadInt32(counter))
+				//app.Logger.Warn("Dev Crawl limit %d reached!", atomic.LoadInt32(counter))
 				return
 			}
 
@@ -261,9 +268,6 @@ func (app *Crawler) crawlUrlsRecursive(processorConfig ProcessorConfig, processe
 
 	if app.isLocalEnv && atomic.LoadInt32(&counter) >= int32(app.engine.DevCrawlLimit) {
 		cancel()
-		return
-	}
-	if app.isLocalEnv && atomic.LoadInt32(&counter) > int32(app.engine.DevCrawlLimit) {
 		return
 	}
 	if len(newUrlCollections) > 0 {

@@ -154,11 +154,12 @@ func getDefaultEngine() Engine {
 			"googleapis.com",
 			"gstatic.com",
 		},
-		BoostCrawling: false,
-		ProxyServers:  []Proxy{},
-		CookieConsent: nil,
-		Timeout:       30 * 1000, // 30 sec
-		SleepAfter:    1000,
+		BoostCrawling:    false,
+		ProxyServers:     []Proxy{},
+		CookieConsent:    nil,
+		Timeout:          30 * 1000, // 30 sec
+		SleepAfter:       1000,
+		MaxRetryAttempts: 3,
 	}
 }
 
@@ -199,6 +200,9 @@ func overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	}
 	if eng.SleepAfter > 0 {
 		defaultEngine.SleepAfter = eng.SleepAfter
+	}
+	if eng.MaxRetryAttempts > 0 {
+		defaultEngine.MaxRetryAttempts = eng.MaxRetryAttempts
 	}
 	defaultEngine.BlockedURLs = append(defaultEngine.BlockedURLs, eng.BlockedURLs...)
 }

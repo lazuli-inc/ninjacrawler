@@ -27,10 +27,11 @@ func exportProductDetailsToCSV(crawler *Crawler, collection string, startPage in
 		}
 		page++
 	}
-
-	fileNameParts := strings.Split(fileName, "/")
-	uploadFileName := fileNameParts[len(fileNameParts)-1]
-	uploadToBucket(crawler, fileName, uploadFileName)
+	if !crawler.isLocalEnv {
+		fileNameParts := strings.Split(fileName, "/")
+		uploadFileName := fileNameParts[len(fileNameParts)-1]
+		uploadToBucket(crawler, fileName, uploadFileName)
+	}
 }
 
 func mustWriteDataToCSV(crawler *Crawler, filename string, products []ProductDetail, isFirstPage bool) error {

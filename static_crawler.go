@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/net/html/charset"
 	"golang.org/x/net/proxy"
 	"io"
 	"log"
@@ -16,21 +17,24 @@ import (
 
 func (app *Crawler) getHttpClient() *http.Client {
 	client := &http.Client{
-		//Timeout: 30 * time.Second,
 		Timeout: (app.engine.Timeout / 1000) * time.Second,
 	}
 	return client
 }
 
 func (app *Crawler) NavigateToStaticURL(client *http.Client, urlString string, proxyServer Proxy) (*goquery.Document, error) {
-
 	body, err := app.getResponseBody(client, urlString, proxyServer)
-
 	if err != nil {
 		return nil, err
 	}
-	document, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
 
+	// Create a reader that can decode the response body with the correct encoding
+	reader, err := charset.NewReader(strings.NewReader(string(body)), "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create reader with correct encoding: %w", err)
+	}
+
+	document, err := goquery.NewDocumentFromReader(reader)
 	if err != nil {
 		return nil, err
 	}
@@ -38,8 +42,10 @@ func (app *Crawler) NavigateToStaticURL(client *http.Client, urlString string, p
 }
 
 func (app *Crawler) NavigateToApiURL(client *http.Client, urlString string, proxyServer Proxy) (map[string]interface{}, error) {
-
 	body, err := app.getResponseBody(client, urlString, proxyServer)
+	if err != nil {
+		return nil, err
+	}
 
 	// Decode JSON response
 	var jsonResponse map[string]interface{}
@@ -50,18 +56,17 @@ func (app *Crawler) NavigateToApiURL(client *http.Client, urlString string, prox
 
 	return jsonResponse, nil
 }
+
 func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxyServer Proxy) ([]byte, error) {
 	if len(app.engine.ProxyServers) > 0 {
-		// Create the proxy URL
 		proxyURL, err := url.Parse(proxyServer.Server)
 		if err != nil {
 			log.Fatalf("Failed to parse proxy URL: %v", err)
 		}
-		// Create an HTTP client and set the transport to use the proxy dialer
+
 		httpTransport := &http.Transport{}
-		// Set the username and password in the proxy URL
 		if proxyServer.Username != "" && proxyServer.Password != "" {
-			proxyURL.User = url.UserPassword(proxyServer.Username, proxyServer.Password) // Create a proxy dialer
+			proxyURL.User = url.UserPassword(proxyServer.Username, proxyServer.Password)
 			dialer, err := proxy.FromURL(proxyURL, proxy.Direct)
 			if err != nil {
 				log.Fatalf("Failed to obtain proxy dialer: %v", err)
@@ -71,7 +76,6 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 			httpTransport.Proxy = http.ProxyURL(proxyURL)
 		}
 
-		// Add TLS configuration for HTTPS proxy if needed
 		if proxyURL.Scheme == "https" {
 			httpTransport.TLSClientConfig = &tls.Config{
 				InsecureSkipVerify: true,
@@ -80,11 +84,12 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 
 		client.Transport = httpTransport
 	}
+
 	req, err := http.NewRequest("GET", urlString, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create request: %v", err)
 	}
-	// Set headers (optional but recommended)
+
 	req.Header.Set("User-Agent", app.Config.GetString("USER_AGENT"))
 
 	resp, err := client.Do(req)

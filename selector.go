@@ -19,6 +19,7 @@ type Handle struct {
 }
 type SingleSelector struct {
 	Selector string
+	Regexp   []string
 }
 
 type Selector struct {

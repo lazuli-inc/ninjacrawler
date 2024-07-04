@@ -3,6 +3,7 @@ package ninjacrawler
 import (
 	"github.com/PuerkitoBio/goquery"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -125,6 +126,12 @@ func (ctx *CrawlerContext) handleProductDetailApi(processor interface{}) *Produc
 
 func handleSingleSelector(document *goquery.Document, selector *SingleSelector) interface{} {
 	txt := document.Find(selector.Selector).Text()
+	// Handle provided regexps and general cleanup in a single loop
+	for _, reStr := range selector.Regexp {
+		re := regexp.MustCompile(reStr)
+		txt = re.ReplaceAllString(txt, "")
+	}
+
 	return txt
 }
 

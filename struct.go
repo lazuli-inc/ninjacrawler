@@ -5,6 +5,8 @@ import (
 	"github.com/playwright-community/playwright-go"
 )
 
+const ZENROWS = "ZENROWS"
+
 type ProcessorConfig struct {
 	Entity           string `json:"entity"`
 	OriginCollection string `json:"originCollection"`

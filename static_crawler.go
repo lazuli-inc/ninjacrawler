@@ -1,6 +1,7 @@
 package ninjacrawler
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"golang.org/x/net/proxy"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -58,13 +60,22 @@ func (app *Crawler) NavigateToApiURL(client *http.Client, urlString string, prox
 }
 
 func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxyServer Proxy) ([]byte, error) {
+	proxyIp := ""
+	httpTransport := &http.Transport{
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			conn, err := net.Dial(network, addr)
+			if err == nil {
+				proxyIp = conn.RemoteAddr().String()
+				//app.Logger.Info("Proxy IP address: %s => %s", proxyIp, urlString)
+			}
+			return conn, err
+		},
+	}
 	if len(app.engine.ProxyServers) > 0 {
 		proxyURL, err := url.Parse(proxyServer.Server)
 		if err != nil {
 			log.Fatalf("Failed to parse proxy URL: %v", err)
 		}
-
-		httpTransport := &http.Transport{}
 		if proxyServer.Username != "" && proxyServer.Password != "" {
 			proxyURL.User = url.UserPassword(proxyServer.Username, proxyServer.Password)
 			dialer, err := proxy.FromURL(proxyURL, proxy.Direct)
@@ -76,7 +87,7 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 			httpTransport.Proxy = http.ProxyURL(proxyURL)
 		}
 
-		if proxyURL.Scheme == "https" {
+		if proxyURL.Scheme == "http" || proxyURL.Scheme == "https" {
 			httpTransport.TLSClientConfig = &tls.Config{
 				InsecureSkipVerify: true,
 			}
@@ -90,11 +101,11 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 		return nil, fmt.Errorf("Failed to create request: %v", err)
 	}
 
-	req.Header.Set("User-Agent", app.Config.GetString("USER_AGENT"))
+	req.Header.Set("User-Agent", app.userAgent)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Error sending request: %v", err)
+		return nil, fmt.Errorf("Error sending request: from %s to %v", proxyIp, err)
 	}
 	defer resp.Body.Close()
 

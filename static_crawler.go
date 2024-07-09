@@ -102,6 +102,7 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 	}
 
 	req.Header.Set("User-Agent", app.userAgent)
+	req.Header.Set("Referer", app.BaseUrl)
 
 	resp, err := client.Do(req)
 	if err != nil {

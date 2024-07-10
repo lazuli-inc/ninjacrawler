@@ -27,7 +27,8 @@ func exportProductDetailsToCSV(crawler *Crawler, collection string, startPage in
 		}
 		page++
 	}
-	if !crawler.isLocalEnv {
+	DO_NOT_UPLOAD_BUCKET := crawler.Config.GetBool("DO_NOT_UPLOAD_BUCKET")
+	if !DO_NOT_UPLOAD_BUCKET {
 		fileNameParts := strings.Split(fileName, "/")
 		uploadFileName := fileNameParts[len(fileNameParts)-1]
 		uploadToBucket(crawler, fileName, uploadFileName)

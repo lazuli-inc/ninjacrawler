@@ -5,6 +5,8 @@ import (
 	"github.com/playwright-community/playwright-go"
 	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
+	"os"
+	"os/exec"
 	"time"
 )
 
@@ -104,11 +106,29 @@ func (app *Crawler) Stop() {
 	if app.Client != nil {
 		app.closeClient()
 	}
-
+	if isInDocker() {
+		// Stop Docker containers using `docker compose down`
+		app.stopDockerContainers()
+	}
 	duration := time.Since(startTime)
 	app.Logger.Info("Crawler stopped in ⚡ %v", duration)
 }
-
+func isInDocker() bool {
+	// Check for the presence of the .dockerenv file
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		return true
+	}
+	return false
+}
+func (app *Crawler) stopDockerContainers() {
+	cmd := exec.Command("docker", "compose", "down")
+	err := cmd.Run()
+	if err != nil {
+		app.Logger.Error("Error stopping Docker containers: %v", err)
+	} else {
+		app.Logger.Info("Docker containers stopped")
+	}
+}
 func (app *Crawler) GetBaseCollection() string {
 	return baseCollection
 }

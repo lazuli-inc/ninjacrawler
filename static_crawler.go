@@ -66,36 +66,44 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 			conn, err := net.Dial(network, addr)
 			if err == nil {
 				proxyIp = conn.RemoteAddr().String()
-				//app.Logger.Info("Proxy IP address: %s => %s", proxyIp, urlString)
+				if app.engine.Provider == "zenrows" || strings.Contains(proxyServer.Server, "proxy.zenrows.com") {
+					app.Logger.Info("Proxy IP address: %s => %s", proxyIp, urlString)
+				}
 			}
 			return conn, err
 		},
 	}
-	if len(app.engine.ProxyServers) > 0 {
-		proxyURL, err := url.Parse(proxyServer.Server)
-		if err != nil {
-			log.Fatalf("Failed to parse proxy URL: %v", err)
-		}
-		if proxyServer.Username != "" && proxyServer.Password != "" {
-			proxyURL.User = url.UserPassword(proxyServer.Username, proxyServer.Password)
-			dialer, err := proxy.FromURL(proxyURL, proxy.Direct)
+
+	if app.engine.Provider == "zenrows" {
+
+		zenrowsApiKey := app.Config.EnvString("ZENROWS_API_KEY")
+		urlString = fmt.Sprintf("https://api.zenrows.com/v1/?apikey=%s&url=%s&custom_headers=true", zenrowsApiKey, urlString)
+	} else {
+		if len(app.engine.ProxyServers) > 0 {
+			proxyURL, err := url.Parse(proxyServer.Server)
 			if err != nil {
-				log.Fatalf("Failed to obtain proxy dialer: %v", err)
+				log.Fatalf("Failed to parse proxy URL: %v", err)
 			}
-			httpTransport.Dial = dialer.Dial
-		} else {
-			httpTransport.Proxy = http.ProxyURL(proxyURL)
-		}
-
-		if proxyURL.Scheme == "http" || proxyURL.Scheme == "https" {
-			httpTransport.TLSClientConfig = &tls.Config{
-				InsecureSkipVerify: true,
+			if proxyServer.Username != "" && proxyServer.Password != "" {
+				proxyURL.User = url.UserPassword(proxyServer.Username, proxyServer.Password)
+				dialer, err := proxy.FromURL(proxyURL, proxy.Direct)
+				if err != nil {
+					log.Fatalf("Failed to obtain proxy dialer: %v", err)
+				}
+				httpTransport.Dial = dialer.Dial
+			} else {
+				httpTransport.Proxy = http.ProxyURL(proxyURL)
 			}
-		}
 
-		client.Transport = httpTransport
+			if proxyURL.Scheme == "http" || proxyURL.Scheme == "https" {
+				httpTransport.TLSClientConfig = &tls.Config{
+					InsecureSkipVerify: true,
+				}
+			}
+
+			client.Transport = httpTransport
+		}
 	}
-
 	req, err := http.NewRequest("GET", urlString, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create request: %v", err)

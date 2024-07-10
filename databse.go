@@ -35,6 +35,20 @@ func (app *Crawler) mustGetClient() *mongo.Client {
 	return client
 }
 
+// dropDatabase drops the specified database.
+func (app *Crawler) dropDatabase() error {
+	client := app.mustGetClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	err := client.Database(app.Name).Drop(ctx)
+	if err != nil {
+		app.Logger.Error("Failed to drop database: %v", err)
+		return err
+	}
+	app.Logger.Info("Database dropped successfully")
+	return nil
+}
+
 // // getCollection returns a collection from the database and ensures unique indexing.
 func (app *Crawler) getCollection(collectionName string) *mongo.Collection {
 	collection := app.Database(app.Name).Collection(collectionName)

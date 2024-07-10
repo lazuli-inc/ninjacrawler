@@ -67,6 +67,14 @@ func (app *Crawler) Start() {
 	}()
 	startTime = time.Now()
 	app.Logger.Info("Crawler Started! 🚀")
+
+	deleteDB := app.Config.GetBool("DELETE_DB")
+	if deleteDB {
+		err := app.dropDatabase()
+		if err != nil {
+			return
+		}
+	}
 	app.newSite()
 	app.toggleClient()
 }
@@ -145,6 +153,7 @@ func overridePreferenceDefaults(defaultPreference *AppPreference, preference *Ap
 func getDefaultEngine() Engine {
 	return Engine{
 		BrowserType:             "chromium",
+		Provider:                "http",
 		ConcurrentLimit:         1,
 		IsDynamic:               false,
 		WaitForDynamicRendering: false,
@@ -169,6 +178,9 @@ func getDefaultEngine() Engine {
 func overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	if eng.BrowserType != "" {
 		defaultEngine.BrowserType = eng.BrowserType
+	}
+	if eng.Provider != "" {
+		defaultEngine.Provider = eng.Provider
 	}
 	if eng.ConcurrentLimit > 0 {
 		defaultEngine.ConcurrentLimit = eng.ConcurrentLimit

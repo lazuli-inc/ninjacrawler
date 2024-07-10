@@ -5,6 +5,7 @@ import (
 )
 
 type Engine struct {
+	Provider                string // http,playwright,zenrows
 	BrowserType             string
 	ConcurrentLimit         int
 	IsDynamic               bool

@@ -82,7 +82,9 @@ func (app *Crawler) crawlPageDetailRecursive(processorConfig ProcessorConfig, pr
 					continue
 				}
 				if len(invalidFields) > 0 {
-					app.Logger.Error("Validation failed: %v\n", invalidFields)
+					msg := fmt.Sprintf("Validation failed: %v\n", invalidFields)
+					html, _ := v.Document.Html()
+					app.Logger.Html(html, v.UrlCollection.Url, msg)
 					err := app.markAsError(v.UrlCollection.Url, processorConfig.OriginCollection)
 					if err != nil {
 						app.Logger.Info(err.Error())

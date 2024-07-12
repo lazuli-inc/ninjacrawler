@@ -88,6 +88,13 @@ func (app *Crawler) crawlPageDetailRecursive(processorConfig ProcessorConfig, pr
 					app.Logger.Error(err.Error())
 					continue
 				}
+
+				if !processorConfig.Preference.DoNotMarkAsComplete {
+					err := app.markAsComplete(v.UrlCollection.Url, processorConfig.OriginCollection)
+					if err != nil {
+						return
+					}
+				}
 				atomic.AddInt32(total, 1)
 			}
 		}
@@ -196,13 +203,6 @@ func (app *Crawler) handleProductDetail(res *ProductDetail, processorConfig Proc
 			if err != nil {
 				return err
 			}
-		}
-	}
-
-	if !processorConfig.Preference.DoNotMarkAsComplete {
-		err := app.markAsComplete(v.UrlCollection.Url, processorConfig.OriginCollection)
-		if err != nil {
-			return err
 		}
 	}
 	return nil

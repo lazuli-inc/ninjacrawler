@@ -12,6 +12,7 @@ import (
 
 // ExportProductDetailsToCSV exports product details to CSV files in chunks.
 func exportProductDetailsToCSV(crawler *Crawler, collection string, startPage int) {
+	crawler.Logger.Info("Exporting %s to CSV", collection)
 	fileName := generateCsvFileName(crawler.Name)
 	page := startPage
 

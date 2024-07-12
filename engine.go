@@ -5,6 +5,7 @@ import (
 )
 
 type Engine struct {
+	ForceInstallPlaywright  bool
 	Provider                string // http,playwright,zenrows
 	BrowserType             string
 	ConcurrentLimit         int

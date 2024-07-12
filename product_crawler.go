@@ -19,8 +19,9 @@ func (app *Crawler) CrawlPageDetail(processorConfigs []ProcessorConfig) {
 		processedUrls := make(map[string]bool) // Track processed URLs
 		total := int32(0)
 		app.crawlPageDetailRecursive(processorConfig, processedUrls, &total, 0)
-		app.Logger.Info("Total %v %v Inserted ", atomic.LoadInt32(&total), processorConfig.OriginCollection)
-		app.Logger.Info("Exporting %s to CSV", processorConfig.Entity)
+		if atomic.LoadInt32(&total) > 0 {
+			app.Logger.Info("Total %v %v Inserted ", atomic.LoadInt32(&total), processorConfig.OriginCollection)
+		}
 		exportProductDetailsToCSV(app, processorConfig.Entity, 1)
 	}
 }
@@ -32,7 +33,7 @@ func (app *Crawler) crawlPageDetailRecursive(processorConfig ProcessorConfig, pr
 		if app.isLocalEnv && i >= app.engine.DevCrawlLimit {
 			break
 		}
-		if !processedUrls[urlCollection.Url] {
+		if !processedUrls[urlCollection.CurrentPageUrl] || !processedUrls[urlCollection.Url] {
 			newUrlCollections = append(newUrlCollections, urlCollection)
 		}
 	}
@@ -45,7 +46,13 @@ func (app *Crawler) crawlPageDetailRecursive(processorConfig ProcessorConfig, pr
 
 	for _, urlCollection := range newUrlCollections {
 		urlChan <- urlCollection
-		processedUrls[urlCollection.Url] = true // Mark URL as processed
+		if urlCollection.Attempts > 0 && urlCollection.Attempts <= app.engine.MaxRetryAttempts {
+			processedUrls[urlCollection.CurrentPageUrl] = false // Do Not Mark URL as processed
+			processedUrls[urlCollection.Url] = false            // Do Not Mark URL as processed
+		} else {
+			processedUrls[urlCollection.CurrentPageUrl] = true // Mark URL as processed
+			processedUrls[urlCollection.Url] = true            // Mark URL as processed
+		}
 	}
 	close(urlChan)
 
@@ -76,55 +83,10 @@ func (app *Crawler) crawlPageDetailRecursive(processorConfig ProcessorConfig, pr
 		case CrawlResult:
 			switch res := v.Results.(type) {
 			case *ProductDetail:
-				invalidFields, unknownFields := validateRequiredFields(res, processorConfig.Preference.ValidationRules)
-				if len(unknownFields) > 0 {
-					app.Logger.Error("Unknown fields provided: %v", unknownFields)
+				err := app.handleProductDetail(res, processorConfig, v)
+				if err != nil {
+					app.Logger.Error(err.Error())
 					continue
-				}
-				if len(invalidFields) > 0 {
-					msg := fmt.Sprintf("Validation failed: %v\n", invalidFields)
-					html, _ := v.Document.Html()
-					app.Logger.Html(html, v.UrlCollection.Url, msg)
-					err := app.markAsError(v.UrlCollection.Url, processorConfig.OriginCollection)
-					if err != nil {
-						app.Logger.Info(err.Error())
-						continue
-					}
-					continue
-				}
-				if len(invalidFields) > 0 {
-					html, _ := v.Document.Html()
-					if app.engine.IsDynamic {
-						html = app.getHtmlFromPage(v.Page)
-					}
-					app.Logger.Html(html, v.UrlCollection.Url, fmt.Sprintf("Validation failed from URL: %v. Missing value for required fields: %v", v.UrlCollection.Url, invalidFields))
-					err := app.markAsError(v.UrlCollection.Url, processorConfig.OriginCollection)
-					if err != nil {
-						app.Logger.Info(err.Error())
-						return
-					}
-					continue
-				}
-
-				app.saveProductDetail(processorConfig.Entity, res)
-				if !app.isLocalEnv {
-					err := app.submitProductData(res)
-					if err != nil {
-						app.Logger.Fatal("Failed to submit product data to API Server: %v", err)
-						err := app.markAsError(v.UrlCollection.Url, processorConfig.OriginCollection)
-						if err != nil {
-							app.Logger.Info(err.Error())
-							return
-						}
-					}
-				}
-
-				if !processorConfig.Preference.DoNotMarkAsComplete {
-					err := app.markAsComplete(v.UrlCollection.Url, processorConfig.OriginCollection)
-					if err != nil {
-						app.Logger.Error(err.Error())
-						continue
-					}
 				}
 				atomic.AddInt32(total, 1)
 			}
@@ -132,9 +94,6 @@ func (app *Crawler) crawlPageDetailRecursive(processorConfig ProcessorConfig, pr
 	}
 	if app.isLocalEnv && atomic.LoadInt32(&counter) >= int32(app.engine.DevCrawlLimit) {
 		cancel()
-		return
-	}
-	if app.isLocalEnv && atomic.LoadInt32(&counter) < int32(app.engine.DevCrawlLimit) {
 		return
 	}
 	if len(newUrlCollections) > 0 {
@@ -208,4 +167,43 @@ func validateRequiredFields(product *ProductDetail, validationRules []string) ([
 		}
 	}
 	return invalidFields, unknownFields
+}
+
+func (app *Crawler) handleProductDetail(res *ProductDetail, processorConfig ProcessorConfig, v CrawlResult) error {
+	invalidFields, unknownFields := validateRequiredFields(res, processorConfig.Preference.ValidationRules)
+	if len(unknownFields) > 0 {
+		return fmt.Errorf("unknown fields provided: %v", unknownFields)
+	}
+	if len(invalidFields) > 0 {
+		msg := fmt.Sprintf("Validation failed: %v\n", invalidFields)
+		html, _ := v.Document.Html()
+		if app.engine.IsDynamic {
+			html = app.getHtmlFromPage(v.Page)
+		}
+		app.Logger.Html(html, v.UrlCollection.Url, msg)
+		err := app.markAsError(v.UrlCollection.Url, processorConfig.OriginCollection)
+		if err != nil {
+			return err
+		}
+	}
+
+	app.saveProductDetail(processorConfig.Entity, res)
+	if !app.isLocalEnv {
+		err := app.submitProductData(res)
+		if err != nil {
+			app.Logger.Fatal("Failed to submit product data to API Server: %v", err)
+			err := app.markAsError(v.UrlCollection.Url, processorConfig.OriginCollection)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if !processorConfig.Preference.DoNotMarkAsComplete {
+		err := app.markAsComplete(v.UrlCollection.Url, processorConfig.OriginCollection)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

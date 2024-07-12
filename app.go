@@ -81,7 +81,7 @@ func (app *Crawler) Start() {
 
 func (app *Crawler) toggleClient() {
 	if app.engine.IsDynamic {
-		pw, err := GetPlaywright()
+		pw, err := app.GetPlaywright()
 		if err != nil {
 			app.Logger.Fatal("failed to initialize playwright: %v\n", err)
 			return // exit if playwright initialization fails

@@ -8,7 +8,13 @@ import (
 
 // GetPlaywright initializes and runs the Playwright framework.
 // It returns a Playwright instance if successful, otherwise returns an error.
-func GetPlaywright() (*playwright.Playwright, error) {
+func (app *Crawler) GetPlaywright() (*playwright.Playwright, error) {
+	if app.engine.ForceInstallPlaywright {
+		err := playwright.Install()
+		if err != nil {
+			return nil, err
+		}
+	}
 	pw, err := playwright.Run()
 	if err != nil {
 		return nil, err

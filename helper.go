@@ -138,14 +138,18 @@ func generateCsvFileName(siteName string) string {
 }
 
 func (app *Crawler) GetFullUrl(url string) string {
-	fullUrl := ""
 	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-		// If href is already a full URL, don't concatenate with baseUrl
-		fullUrl = url
-	} else {
-		fullUrl = app.BaseUrl + url
+		// If url is already a full URL, return it as is
+		return url
+	} else if strings.HasPrefix(url, "//") {
+		// If url starts with "//", use the protocol from BaseUrl
+		if strings.HasPrefix(app.BaseUrl, "https://") {
+			return "https:" + url
+		}
+		return "http:" + url
 	}
-	return fullUrl
+	// Otherwise, concatenate with BaseUrl
+	return app.BaseUrl + url
 }
 
 // shouldBlockResource checks if a resource should be blocked based on its type and URL.

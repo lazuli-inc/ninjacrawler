@@ -120,9 +120,13 @@ func (app *Crawler) saveProductDetail(model string, productDetail *ProductDetail
 	defer cancel()
 
 	collection := app.getCollection(model)
-	_, err := collection.ReplaceOne(ctx, bson.D{{Key: "url", Value: productDetail.Url}}, productDetail, options.Replace().SetUpsert(true))
-	if err != nil {
-		app.Logger.Error("Could not save product detail: %v", err)
+	if !contains(app.preference.ExcludeUniqueUrlEntities, model) {
+		_, err := collection.ReplaceOne(ctx, bson.D{{Key: "url", Value: productDetail.Url}}, productDetail, options.Replace().SetUpsert(true))
+		if err != nil {
+			app.Logger.Error("Could not save product detail: %v", err)
+		}
+	} else {
+		_, _ = collection.InsertOne(ctx, productDetail)
 	}
 }
 

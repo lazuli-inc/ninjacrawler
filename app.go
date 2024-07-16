@@ -171,6 +171,7 @@ func getDefaultEngine() Engine {
 		Timeout:          30 * 1000, // 30 sec
 		SleepAfter:       1000,
 		MaxRetryAttempts: 3,
+		Args:             []string{},
 	}
 }
 
@@ -224,6 +225,9 @@ func overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	}
 	if eng.MaxRetryAttempts > 0 {
 		defaultEngine.MaxRetryAttempts = eng.MaxRetryAttempts
+	}
+	if len(eng.Args) > 0 {
+		defaultEngine.Args = eng.Args
 	}
 	defaultEngine.BlockedURLs = append(defaultEngine.BlockedURLs, eng.BlockedURLs...)
 }

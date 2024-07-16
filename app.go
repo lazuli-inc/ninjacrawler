@@ -88,7 +88,7 @@ func (app *Crawler) toggleClient() {
 		}
 		app.pw = pw
 	} else {
-		app.httpClient = app.getHttpClient()
+		app.httpClient = app.GetHttpClient()
 	}
 }
 

@@ -151,6 +151,26 @@ func (app *Crawler) GetFullUrl(url string) string {
 	// Otherwise, concatenate with BaseUrl
 	return app.BaseUrl + url
 }
+func (app *Crawler) GetQueryEscapeFullUrl(urlStr string) string {
+	var fullUrl string
+	if strings.HasPrefix(urlStr, "http://") || strings.HasPrefix(urlStr, "https://") {
+		// If url is already a full URL, return it as is
+		fullUrl = urlStr
+	} else if strings.HasPrefix(urlStr, "//") {
+		// If url starts with "//", use the protocol from BaseUrl
+		if strings.HasPrefix(app.BaseUrl, "https://") {
+			fullUrl = "https:" + urlStr
+		} else {
+			fullUrl = "http:" + urlStr
+		}
+	} else {
+		// Otherwise, concatenate with BaseUrl
+		fullUrl = app.BaseUrl + urlStr
+	}
+
+	encodedURL := url.QueryEscape(fullUrl)
+	return encodedURL
+}
 
 // shouldBlockResource checks if a resource should be blocked based on its type and URL.
 func (app *Crawler) shouldBlockResource(resourceType string, url string) bool {

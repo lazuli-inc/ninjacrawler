@@ -62,6 +62,7 @@ func (app *Crawler) crawlUrlsRecursive(processorConfig ProcessorConfig, processe
 		wg.Add(1)
 		go func(proxy Proxy) {
 			defer wg.Done()
+			app.CurrentProxy = proxy
 			app.crawlWorker(ctx, processorConfig, urlChan, resultChan, proxy, app.isLocalEnv, &counter)
 		}(proxy)
 	}

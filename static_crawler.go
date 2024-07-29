@@ -25,7 +25,7 @@ func (app *Crawler) GetHttpClient() *http.Client {
 }
 
 func (app *Crawler) NavigateToStaticURL(client *http.Client, urlString string, proxyServer Proxy) (*goquery.Document, error) {
-	body, err := app.getResponseBody(client, urlString, proxyServer)
+	body, err := app.getResponseBody(client, urlString, proxyServer, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (app *Crawler) NavigateToStaticURL(client *http.Client, urlString string, p
 }
 
 func (app *Crawler) NavigateToApiURL(client *http.Client, urlString string, proxyServer Proxy) (map[string]interface{}, error) {
-	body, err := app.getResponseBody(client, urlString, proxyServer)
+	body, err := app.getResponseBody(client, urlString, proxyServer, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (app *Crawler) NavigateToApiURL(client *http.Client, urlString string, prox
 	return jsonResponse, nil
 }
 
-func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxyServer Proxy) ([]byte, error) {
+func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxyServer Proxy, attempt int) ([]byte, error) {
 	proxyIp := ""
 	httpTransport := &http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -77,7 +77,9 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 	if app.engine.Provider == "zenrows" {
 
 		zenrowsApiKey := app.Config.EnvString("ZENROWS_API_KEY")
-		urlString = fmt.Sprintf("https://api.zenrows.com/v1/?apikey=%s&url=%s&custom_headers=true", zenrowsApiKey, urlString)
+
+		finalUrl := urlString + "&js_render=true"
+		urlString = fmt.Sprintf("https://api.zenrows.com/v1/?apikey=%s&url=%s&custom_headers=true", zenrowsApiKey, finalUrl)
 	} else {
 		if len(app.engine.ProxyServers) > 0 {
 			proxyURL, err := url.Parse(proxyServer.Server)
@@ -114,7 +116,7 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Error sending request: from %s to %v", proxyIp, err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -124,8 +126,26 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		msg := fmt.Sprintf("failed to fetch page: %v", resp.Status)
+		msg := fmt.Sprintf("failed to fetch page: StatusCode:%v and Status:%v", resp.StatusCode, resp.Status)
 		app.Logger.Html(string(body), urlString, msg)
+
+		var jsonResponse map[string]interface{}
+		err = json.Unmarshal(body, &jsonResponse)
+
+		if err == nil && jsonResponse["code"] == "RESP001" && jsonResponse["status"] == 422 && strings.Contains(jsonResponse["title"].(string), "Could not get content. try enabling premium proxies for a higher success rate (RESP001)") {
+
+			if attempt <= 3 {
+				attempt++
+				fmt.Println("Zenrows response: ", jsonResponse)
+				urlString += "&premium_proxy=true&proxy_country=jp"
+				app.Logger.Warn("retrying with premium proxy: %s", urlString)
+				body, err = app.getResponseBody(client, urlString, proxyServer, attempt)
+				if err != nil {
+					return nil, err
+				}
+				return body, nil
+			}
+		}
 		return nil, fmt.Errorf(msg)
 	}
 	return body, nil

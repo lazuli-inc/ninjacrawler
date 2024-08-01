@@ -77,9 +77,11 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 	if app.engine.Provider == "zenrows" {
 
 		zenrowsApiKey := app.Config.EnvString("ZENROWS_API_KEY")
-
-		finalUrl := urlString + "&js_render=true"
-		urlString = fmt.Sprintf("https://api.zenrows.com/v1/?apikey=%s&url=%s&custom_headers=true", zenrowsApiKey, finalUrl)
+		proxyOption := ""
+		if app.engine.ProviderOption.JsRender {
+			proxyOption = "&js_render=true"
+		}
+		urlString = fmt.Sprintf("https://api.zenrows.com/v1/?apikey=%s&url=%s&custom_headers=true%s", zenrowsApiKey, urlString, proxyOption)
 	} else {
 		if len(app.engine.ProxyServers) > 0 {
 			proxyURL, err := url.Parse(proxyServer.Server)
@@ -134,7 +136,7 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 
 		if err == nil && jsonResponse["code"] == "RESP001" && jsonResponse["status"] == 422 && strings.Contains(jsonResponse["title"].(string), "Could not get content. try enabling premium proxies for a higher success rate (RESP001)") {
 
-			if attempt <= 3 {
+			if attempt <= app.engine.MaxRetryAttempts && app.engine.ProviderOption.UsePremiumProxyRetry {
 				attempt++
 				fmt.Println("Zenrows response: ", jsonResponse)
 				urlString += "&premium_proxy=true&proxy_country=jp"

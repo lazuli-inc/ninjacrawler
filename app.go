@@ -175,6 +175,10 @@ func getDefaultEngine() Engine {
 		MaxRetryAttempts:       3,
 		ForceInstallPlaywright: false,
 		Args:                   []string{},
+		ProviderOption: ProviderQueryOption{
+			JsRender:             false,
+			UsePremiumProxyRetry: false,
+		},
 	}
 }
 
@@ -234,6 +238,14 @@ func overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	}
 	if len(eng.Args) > 0 {
 		defaultEngine.Args = eng.Args
+	}
+
+	if eng.ProviderOption.JsRender {
+		defaultEngine.ProviderOption.JsRender = eng.ProviderOption.JsRender
+	}
+
+	if eng.ProviderOption.UsePremiumProxyRetry {
+		defaultEngine.ProviderOption.UsePremiumProxyRetry = eng.ProviderOption.UsePremiumProxyRetry
 	}
 	defaultEngine.BlockedURLs = append(defaultEngine.BlockedURLs, eng.BlockedURLs...)
 }

@@ -7,6 +7,7 @@ import (
 type Engine struct {
 	ForceInstallPlaywright  bool
 	Provider                string // http,playwright,zenrows
+	ProviderOption          ProviderQueryOption
 	BrowserType             string
 	ConcurrentLimit         int
 	IsDynamic               bool
@@ -22,6 +23,10 @@ type Engine struct {
 	SleepAfter              int
 	MaxRetryAttempts        int
 	Args                    []string
+}
+type ProviderQueryOption struct {
+	JsRender             bool
+	UsePremiumProxyRetry bool
 }
 
 func (app *Crawler) SetBrowserType(browserType string) *Crawler {

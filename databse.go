@@ -73,6 +73,9 @@ func (app *Crawler) ensureUniqueIndex(collection *mongo.Collection) {
 
 // insert inserts multiple URL collections into the database.
 func (app *Crawler) insert(model string, urlCollections []UrlCollection, parent string) {
+	app.InsertUrlCollections(model, urlCollections, parent)
+}
+func (app *Crawler) InsertUrlCollections(model string, urlCollections []UrlCollection, parent string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

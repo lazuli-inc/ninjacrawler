@@ -163,7 +163,7 @@ func validateRequiredFields(product *ProductDetail, validationRules []string) ([
 				excludeValues := strings.Split(ruleValue, ",")
 				for _, excludeValue := range excludeValues {
 					excludeValue = strings.TrimSpace(excludeValue)
-					if fieldValueStr == excludeValue {
+					if strings.TrimSpace(fieldValueStr) == excludeValue {
 						invalidFields = append(invalidFields, fmt.Sprintf("%s: blacklist value '%s'", f.Name, excludeValue))
 						break
 					}

@@ -163,6 +163,34 @@ func (app *Crawler) markAsError(url string, dbCollection string) error {
 
 	return nil
 }
+func (app *Crawler) MarkAsMaxErrorAttempt(url string, dbCollection string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var result bson.M
+
+	collection := app.getCollection(dbCollection)
+	filter := bson.D{{Key: "url", Value: url}}
+
+	err := collection.FindOne(context.TODO(), filter).Decode(&result)
+	if err != nil {
+		return fmt.Errorf("Collection Not Found: %v", err)
+	}
+	timeNow := time.Now()
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "error", Value: true},
+			{Key: "MaxRetryAttempts", Value: true},
+			{Key: "attempts", Value: app.engine.MaxRetryAttempts},
+			{Key: "updated_at", Value: &timeNow},
+		}},
+	}
+
+	_, err = collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("[%s: => %s] could not mark as Error: Please check this [Error]: %v", dbCollection, url, err)
+	}
+	return nil
+}
 
 // markAsComplete marks a URL collection as having encountered an error and updates the database.
 func (app *Crawler) markAsComplete(url string, dbCollection string) error {

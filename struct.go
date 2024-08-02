@@ -16,8 +16,20 @@ type ProcessorConfig struct {
 	ProcessorType    ProcessorType `json:"processor_type"`
 }
 type ProcessorType struct {
-	Handle      *Handle     `json:"handle"`
-	UrlSelector UrlSelector `json:"url_selector"`
+	Handle          *Handle         `json:"handle"`
+	UrlSelector     UrlSelector     `json:"url_selector"`
+	ElementSelector ElementSelector `json:"element_selector"`
+}
+type ElementSelector struct {
+	Handle   *Handle       `json:"handle"`
+	Elements []ElementType `json:"elements"`
+}
+type ElementType struct {
+	Plugin         string         `json:"plugin"`
+	SingleSelector SingleSelector `json:"single_selector"`
+	MultiSelectors MultiSelectors `json:"multi_selectors"`
+	Value          string         `json:"value"`
+	ElementID      string         `json:"element_id"`
 }
 type AppPreference struct {
 	ExcludeUniqueUrlEntities []string
@@ -25,8 +37,12 @@ type AppPreference struct {
 type Preference struct {
 	DoNotMarkAsComplete bool
 	ValidationRules     []string
+	PreHandlers         []func(c PreHandlerContext) error
 }
-
+type PreHandlerContext struct {
+	App           *Crawler
+	UrlCollection UrlCollection
+}
 type Handler struct {
 	UrlHandler     func(c *Crawler)
 	ProductHandler func(c *Crawler)

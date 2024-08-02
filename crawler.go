@@ -34,6 +34,19 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 			if !more {
 				return
 			}
+			preHandlerError := false
+			if processorConfig.Preference.PreHandlers != nil { // Execute pre handlers
+				for _, preHandler := range processorConfig.Preference.PreHandlers {
+					err := preHandler(PreHandlerContext{UrlCollection: urlCollection, App: app})
+					if err != nil {
+						app.Logger.Warn("Failed to...%s", err.Error())
+						preHandlerError = true
+					}
+				}
+			}
+			if preHandlerError {
+				continue
+			}
 			crawlableUrl := urlCollection.Url
 			if urlCollection.CurrentPageUrl != "" {
 				crawlableUrl = urlCollection.CurrentPageUrl

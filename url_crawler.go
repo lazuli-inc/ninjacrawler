@@ -26,9 +26,13 @@ func (app *Crawler) crawlUrlsRecursive(processorConfig ProcessorConfig, processe
 		if app.isLocalEnv && i >= app.engine.DevCrawlLimit {
 			break
 		}
-		if !processedUrls[urlCollection.CurrentPageUrl] || !processedUrls[urlCollection.Url] {
+		if !processedUrls[urlCollection.CurrentPageUrl] && !processedUrls[urlCollection.Url] {
 			newUrlCollections = append(newUrlCollections, urlCollection)
 		}
+	}
+
+	if len(newUrlCollections) == 0 {
+		return // Base case for recursion
 	}
 
 	var wg sync.WaitGroup
@@ -87,7 +91,7 @@ func (app *Crawler) crawlUrlsRecursive(processorConfig ProcessorConfig, processe
 		cancel()
 		return
 	}
-	if len(newUrlCollections) > 0 {
-		app.crawlUrlsRecursive(processorConfig, processedUrls, total, counter)
-	}
+
+	// Recursive call if there are new URLs to process
+	app.crawlUrlsRecursive(processorConfig, processedUrls, total, counter)
 }

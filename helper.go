@@ -10,6 +10,7 @@ import (
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
 	"log"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -384,4 +385,25 @@ func StopInstanceIfRunningFromGCP() {
 }
 func (app *Crawler) ToNumericsString(str string) string {
 	return regexp.MustCompile(`[^0-9]`).ReplaceAllString(str, "")
+}
+
+// checkContentType sends a HEAD request to the URL and checks the Content-Type header
+func (app *Crawler) CheckContentType(url string) (string, error) {
+	resp, err := http.Head(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	ContentType := resp.Header.Get("Content-Type")
+	return ContentType, nil
+}
+
+// IsHTMLPage checks if the Content-Type indicates an HTML page
+func (app *Crawler) IsHTMLPage(urlStr string) bool {
+	ContentType, err := app.CheckContentType(urlStr)
+	if err != nil {
+		return false
+	}
+	return strings.Contains(ContentType, "text/html")
 }

@@ -21,27 +21,17 @@ func (app *Crawler) CrawlUrls(processorConfigs []ProcessorConfig) {
 func (app *Crawler) crawlUrlsRecursive(processorConfig ProcessorConfig, processedUrls map[string]bool, total *int32, counter int32) {
 	urlCollections := app.getUrlCollections(processorConfig.OriginCollection)
 
-	newUrlCollections := []UrlCollection{}
-	for i, urlCollection := range urlCollections {
-		if app.isLocalEnv && i >= app.engine.DevCrawlLimit {
-			break
-		}
-		if !processedUrls[urlCollection.CurrentPageUrl] && !processedUrls[urlCollection.Url] {
-			newUrlCollections = append(newUrlCollections, urlCollection)
-		}
-	}
-
-	if len(newUrlCollections) == 0 {
+	if len(urlCollections) == 0 {
 		return // Base case for recursion
 	}
 
 	var wg sync.WaitGroup
-	urlChan := make(chan UrlCollection, len(newUrlCollections))
-	resultChan := make(chan interface{}, len(newUrlCollections))
+	urlChan := make(chan UrlCollection, len(urlCollections))
+	resultChan := make(chan interface{}, len(urlCollections))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	for _, urlCollection := range newUrlCollections {
+	for _, urlCollection := range urlCollections {
 		urlChan <- urlCollection
 		if urlCollection.Attempts > 0 && urlCollection.Attempts <= app.engine.MaxRetryAttempts {
 			processedUrls[urlCollection.CurrentPageUrl] = false // Do Not Mark URL as processed
@@ -55,7 +45,7 @@ func (app *Crawler) crawlUrlsRecursive(processorConfig ProcessorConfig, processe
 
 	proxyCount := len(app.engine.ProxyServers)
 	batchSize := app.engine.ConcurrentLimit
-	totalUrls := len(newUrlCollections)
+	totalUrls := len(urlCollections)
 	goroutineCount := min(max(proxyCount, 1)*batchSize, totalUrls)
 
 	for i := 0; i < goroutineCount; i++ {

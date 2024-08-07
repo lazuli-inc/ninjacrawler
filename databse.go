@@ -164,7 +164,7 @@ func (app *Crawler) markAsError(url string, dbCollection string, errStr string) 
 
 	return nil
 }
-func (app *Crawler) MarkAsMaxErrorAttempt(url string, dbCollection string) error {
+func (app *Crawler) MarkAsMaxErrorAttempt(url string, dbCollection, errStr string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var result bson.M
@@ -180,6 +180,7 @@ func (app *Crawler) MarkAsMaxErrorAttempt(url string, dbCollection string) error
 	update := bson.D{
 		{Key: "$set", Value: bson.D{
 			{Key: "error", Value: true},
+			{Key: "error_log", Value: errStr},
 			{Key: "MaxRetryAttempts", Value: true},
 			{Key: "attempts", Value: app.engine.MaxRetryAttempts},
 			{Key: "updated_at", Value: &timeNow},

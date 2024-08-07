@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/playwright-community/playwright-go"
+	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -69,6 +70,13 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 			}
 
 			if err != nil {
+				if strings.Contains(err.Error(), "StatusCode:404") {
+					markAsMaxError := app.MarkAsMaxErrorAttempt(urlCollection.Url, processorConfig.OriginCollection, err.Error())
+					if markAsMaxError != nil {
+						app.Logger.Error(markAsMaxError.Error())
+						return
+					}
+				}
 				markAsError := app.markAsError(urlCollection.Url, processorConfig.OriginCollection, err.Error())
 				if markAsError != nil {
 					app.Logger.Error(markAsError.Error())

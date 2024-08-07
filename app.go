@@ -5,6 +5,9 @@ import (
 	"github.com/playwright-community/playwright-go"
 	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -106,8 +109,31 @@ func (app *Crawler) Stop() {
 	if app.Client != nil {
 		app.closeClient()
 	}
+	// upload logs
+	app.UploadLogs()
 	duration := time.Since(startTime)
 	app.Logger.Info("Crawler stopped in ⚡ %v", duration)
+}
+
+func (app *Crawler) UploadLogs() {
+	storagePath := fmt.Sprintf("storage/logs/%s", app.Name)
+	err := filepath.Walk(storagePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			app.Logger.Error("Error accessing path %s: %v", path, err)
+			return err
+		}
+
+		if !info.IsDir() {
+			relativePath := strings.TrimPrefix(path, storagePath+"/")
+			uploadToBucket(app, path, fmt.Sprintf("logs/%s", relativePath))
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		app.Logger.Error("Error walking through storage directory: %v", err)
+	}
 }
 
 func (app *Crawler) GetBaseCollection() string {

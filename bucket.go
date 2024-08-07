@@ -15,41 +15,49 @@ import (
 func uploadToBucket(app *Crawler, sourceFileName, destinationFileName string) {
 	startTime := time.Now()
 	bucketName := "gen_crawled_data_venturas_asia-northeast1"
-	destinationFileName = fmt.Sprintf("maker/%s/%s", app.Name, destinationFileName)
 	googleApplicationCredentialsFileName := app.Config.EnvString("GCP_CREDENTIALS_PATH")
 
-	if googleApplicationCredentialsFileName == "" {
-		app.Logger.Error("GCP_CREDENTIALS_PATH environment variable is not set")
+	err := UploadToGCPBucket(app.Name, googleApplicationCredentialsFileName, sourceFileName, destinationFileName)
+	if err != nil {
+		app.Logger.Error("Failed to upload file %s to bucket %s: %v", sourceFileName, bucketName, err)
 		return
 	}
 
-	if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", googleApplicationCredentialsFileName); err != nil {
-		app.Logger.Error("Failed to set GOOGLE_APPLICATION_CREDENTIALS: %v", err)
-		return
+	timeTaken := time.Since(startTime)
+	app.Logger.Info("File %s uploaded to bucket successfully. Time taken: %s", sourceFileName, timeTaken)
+}
+func UploadToGCPBucket(dirName, GCP_CREDENTIALS_PATH, sourceFileName, destinationFileName string) error {
+	bucketName := "gen_crawled_data_venturas_asia-northeast1"
+	destinationFileName = fmt.Sprintf("maker/%s/%s", dirName, destinationFileName)
+
+	if GCP_CREDENTIALS_PATH == "" {
+		return fmt.Errorf("GCP_CREDENTIALS_PATH environment variable is not set")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", GCP_CREDENTIALS_PATH); err != nil {
+		return fmt.Errorf("Failed to set GOOGLE_APPLICATION_CREDENTIALS: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		app.Logger.Error("Failed to create storage client: %v", err)
-		return
+		return fmt.Errorf("Failed to create storage client: %v", err)
 	}
 	defer func() {
 		if err := client.Close(); err != nil {
-			app.Logger.Error("Failed to close storage client: %v", err)
+			fmt.Println("Failed to close storage client: %v", err)
 		}
 	}()
 
 	file, err := os.Open(sourceFileName)
 	if err != nil {
-		app.Logger.Error("Failed to open file %s: %v", sourceFileName, err)
-		return
+		return fmt.Errorf("Failed to open file %s: %v", sourceFileName, err)
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			app.Logger.Error("Failed to close file %s: %v", sourceFileName, err)
+			fmt.Println("Failed to close file %s: %v", sourceFileName, err)
 		}
 	}()
 
@@ -58,25 +66,22 @@ func uploadToBucket(app *Crawler, sourceFileName, destinationFileName string) {
 
 	contentType, err := detectContentType(sourceFileName)
 	if err != nil {
-		app.Logger.Error("Failed to detect content type for file %s: %v", sourceFileName, err)
+		fmt.Println("Failed to detect content type for file %s: %v", sourceFileName, err)
 		writer.ContentType = "application/octet-stream" // Default to binary stream if detection fails
 	} else {
 		writer.ContentType = contentType
 	}
 
 	if _, err := io.Copy(writer, file); err != nil {
-		app.Logger.Error("Failed to copy file data to bucket %s: %v", bucketName, err)
 		writer.Close() // Ensure writer is closed to release resources
-		return
+		return fmt.Errorf("Failed to copy file data to bucket %s: %v", bucketName, err)
 	}
 
 	if err := writer.Close(); err != nil {
-		app.Logger.Error("Failed to close writer for file %s: %v", destinationFileName, err)
-		return
+		return fmt.Errorf("Failed to close writer for file %s: %v", destinationFileName, err)
 	}
 
-	timeTaken := time.Since(startTime)
-	app.Logger.Info("File %s uploaded to bucket successfully. Time taken: %s", sourceFileName, timeTaken)
+	return nil
 }
 func detectContentType(filePath string) (string, error) {
 	file, err := os.Open(filePath)

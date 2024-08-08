@@ -71,17 +71,16 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 
 			if err != nil {
 				if strings.Contains(err.Error(), "StatusCode:404") {
-					markAsMaxError := app.MarkAsMaxErrorAttempt(urlCollection.Url, processorConfig.OriginCollection, err.Error())
-					if markAsMaxError != nil {
-						app.Logger.Error(markAsMaxError.Error())
+					if markErr := app.MarkAsMaxErrorAttempt(urlCollection.Url, processorConfig.OriginCollection, err.Error()); markErr != nil {
+						app.Logger.Error(markErr.Error())
 						return
 					}
 					continue
-				}
-				markAsError := app.markAsError(urlCollection.Url, processorConfig.OriginCollection, err.Error())
-				if markAsError != nil {
-					app.Logger.Error(markAsError.Error())
-					continue
+				} else {
+					if markErr := app.markAsError(urlCollection.Url, processorConfig.OriginCollection, err.Error()); markErr != nil {
+						app.Logger.Error(markErr.Error())
+						continue
+					}
 				}
 				app.Logger.Error(err.Error())
 				continue
@@ -254,9 +253,9 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 			}
 
 			operationCount++                               // Increment the operation count
-			if operationCount%app.engine.SleepAfter == 0 { // Check if 10 operations have been performed
-				app.Logger.Info("Sleeping %d Second after %d Operations", app.engine.SleepDuration, app.engine.SleepAfter)
-				time.Sleep(time.Duration(app.engine.SleepDuration) * time.Second) // Sleep for 10 seconds
+			if operationCount%app.engine.SleepAfter == 0 { // Apply sleep after a certain number of operations
+				app.Logger.Info("Sleeping %d seconds after %d operations", app.engine.SleepDuration, app.engine.SleepAfter)
+				time.Sleep(time.Duration(app.engine.SleepDuration) * time.Second)
 			}
 		}
 	}

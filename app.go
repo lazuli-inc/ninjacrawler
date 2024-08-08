@@ -110,7 +110,9 @@ func (app *Crawler) Stop() {
 		app.closeClient()
 	}
 	// upload logs
-	app.UploadLogs()
+	if !app.isLocalEnv {
+		app.UploadLogs()
+	}
 	duration := time.Since(startTime)
 	app.Logger.Info("Crawler stopped in ⚡ %v", duration)
 }

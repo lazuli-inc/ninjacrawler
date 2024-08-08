@@ -205,6 +205,7 @@ func getDefaultEngine() Engine {
 			JsRender:             false,
 			UsePremiumProxyRetry: false,
 		},
+		SleepDuration: 10,
 	}
 }
 
@@ -274,4 +275,7 @@ func overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 		defaultEngine.ProviderOption.UsePremiumProxyRetry = eng.ProviderOption.UsePremiumProxyRetry
 	}
 	defaultEngine.BlockedURLs = append(defaultEngine.BlockedURLs, eng.BlockedURLs...)
+	if eng.SleepDuration > 0 {
+		defaultEngine.SleepDuration = eng.SleepDuration
+	}
 }

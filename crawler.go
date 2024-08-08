@@ -254,8 +254,8 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 
 			operationCount++                               // Increment the operation count
 			if operationCount%app.engine.SleepAfter == 0 { // Check if 10 operations have been performed
-				app.Logger.Info("Sleeping 10 Second after %d Operations", app.engine.SleepAfter)
-				time.Sleep(10 * time.Second) // Sleep for 10 seconds
+				app.Logger.Info("Sleeping %d Second after %d Operations", app.engine.SleepDuration, app.engine.SleepAfter)
+				time.Sleep(time.Duration(app.engine.SleepDuration) * time.Second) // Sleep for 10 seconds
 			}
 		}
 	}

@@ -23,6 +23,7 @@ type Engine struct {
 	SleepAfter              int
 	MaxRetryAttempts        int
 	Args                    []string
+	SleepDuration           int
 }
 type ProviderQueryOption struct {
 	JsRender             bool

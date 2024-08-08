@@ -76,11 +76,12 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 						app.Logger.Error(markAsMaxError.Error())
 						return
 					}
+					continue
 				}
 				markAsError := app.markAsError(urlCollection.Url, processorConfig.OriginCollection, err.Error())
 				if markAsError != nil {
 					app.Logger.Error(markAsError.Error())
-					return
+					continue
 				}
 				app.Logger.Error(err.Error())
 				continue

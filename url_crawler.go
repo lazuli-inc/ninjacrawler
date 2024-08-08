@@ -19,6 +19,91 @@ func (app *Crawler) CrawlUrls(processorConfigs []ProcessorConfig) {
 	}
 }
 func (app *Crawler) crawlUrlsRecursive(processorConfig ProcessorConfig, processedUrls map[string]bool, total *int32, counter int32) {
+	for {
+		productListData := app.getUrlCollections(processorConfig.OriginCollection)
+
+		if len(productListData) == 0 {
+			return // Exit recursion if no data to process
+		}
+
+		var wg sync.WaitGroup
+
+		// Process URLs in the current level
+		app.processUrls(productListData, processorConfig, processedUrls, total, counter, &wg)
+
+		// Wait for all goroutines to finish
+		wg.Wait()
+	}
+}
+
+func (app *Crawler) processUrls(productListData []UrlCollection, processorConfig ProcessorConfig, processedUrls map[string]bool, total *int32, counter int32, wg *sync.WaitGroup) {
+	// Add the processing of the current level
+	wg.Add(1)
+	go app.handleJob(productListData, processorConfig, processedUrls, total, counter, wg)
+}
+
+func (app *Crawler) handleJob(urlCollections []UrlCollection, processorConfig ProcessorConfig, processedUrls map[string]bool, total *int32, counter int32, wg *sync.WaitGroup) {
+	defer wg.Done()
+	urlChan := make(chan UrlCollection, len(urlCollections))
+	resultChan := make(chan interface{}, len(urlCollections))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	for _, urlCollection := range urlCollections {
+		urlChan <- urlCollection
+		if urlCollection.Attempts > 0 && urlCollection.Attempts <= app.engine.MaxRetryAttempts {
+			processedUrls[urlCollection.CurrentPageUrl] = false // Do Not Mark URL as processed
+			processedUrls[urlCollection.Url] = false            // Do Not Mark URL as processed
+		} else {
+			processedUrls[urlCollection.CurrentPageUrl] = true // Mark URL as processed
+			processedUrls[urlCollection.Url] = true            // Mark URL as processed
+		}
+	}
+	close(urlChan)
+
+	proxyCount := len(app.engine.ProxyServers)
+	batchSize := app.engine.ConcurrentLimit
+	totalUrls := len(urlCollections)
+	goroutineCount := min(max(proxyCount, 1)*batchSize, totalUrls)
+
+	var innerWg sync.WaitGroup
+
+	for i := 0; i < goroutineCount; i++ {
+		proxy := Proxy{}
+		if proxyCount > 0 {
+			proxy = app.engine.ProxyServers[i%proxyCount]
+		}
+		innerWg.Add(1)
+		go func(proxy Proxy) {
+			defer innerWg.Done()
+			app.CurrentProxy = proxy
+			app.crawlWorker(ctx, processorConfig, urlChan, resultChan, proxy, app.isLocalEnv, &counter)
+		}(proxy)
+	}
+
+	go func() {
+		innerWg.Wait()
+		close(resultChan)
+	}()
+
+	for results := range resultChan {
+		switch v := results.(type) {
+		case CrawlResult:
+			switch res := v.Results.(type) {
+			case []UrlCollection:
+				atomic.AddInt32(total, int32(len(res)))
+				app.Logger.Info("(%d) :%s: Found From [%s => %s]", len(res), processorConfig.Entity, processorConfig.OriginCollection, v.UrlCollection.Url)
+			}
+		}
+	}
+
+	if app.isLocalEnv && atomic.LoadInt32(&counter) >= int32(app.engine.DevCrawlLimit) {
+		cancel()
+		return
+	}
+}
+
+func (app *Crawler) crawlUrlsRecursiveDeprecated(processorConfig ProcessorConfig, processedUrls map[string]bool, total *int32, counter int32) {
 	urlCollections := app.getUrlCollections(processorConfig.OriginCollection)
 
 	if len(urlCollections) == 0 {
@@ -83,5 +168,5 @@ func (app *Crawler) crawlUrlsRecursive(processorConfig ProcessorConfig, processe
 	}
 
 	// Recursive call if there are new URLs to process
-	app.crawlUrlsRecursive(processorConfig, processedUrls, total, counter)
+	app.crawlUrlsRecursiveDeprecated(processorConfig, processedUrls, total, counter)
 }

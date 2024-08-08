@@ -36,24 +36,23 @@ type Crawler struct {
 }
 
 func NewCrawler(name, url string, engines ...Engine) *Crawler {
-
-	defaultPreference := getDefaultPreference()
-	defaultEngine := getDefaultEngine()
-	if len(engines) > 0 {
-		eng := engines[0]
-		overrideEngineDefaults(&defaultEngine, &eng)
-	}
 	// Handle other engine overrides as needed
 	config := newConfig()
 
 	crawler := &Crawler{
 		Name:         name,
 		Url:          url,
-		engine:       &defaultEngine,
 		Config:       config,
 		CurrentProxy: Proxy{},
 	}
 
+	defaultPreference := getDefaultPreference()
+	defaultEngine := getDefaultEngine()
+	if len(engines) > 0 {
+		eng := engines[0]
+		crawler.overrideEngineDefaults(&defaultEngine, &eng)
+	}
+	crawler.engine = &defaultEngine
 	logger := newDefaultLogger(crawler, name)
 	crawler.Logger = logger
 	crawler.Client = crawler.mustGetClient()
@@ -211,7 +210,7 @@ func getDefaultEngine() Engine {
 	}
 }
 
-func overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
+func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	if eng.BrowserType != "" {
 		defaultEngine.BrowserType = eng.BrowserType
 	}
@@ -238,7 +237,7 @@ func overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	}
 	if eng.BoostCrawling {
 		defaultEngine.BoostCrawling = eng.BoostCrawling
-		defaultEngine.ProxyServers = eng.getProxyList()
+		defaultEngine.ProxyServers = app.getProxyList()
 	}
 	if len(eng.ProxyServers) > 0 {
 		config := newConfig()

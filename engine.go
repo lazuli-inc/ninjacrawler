@@ -1,6 +1,7 @@
 package ninjacrawler
 
 import (
+	"strings"
 	"time"
 )
 
@@ -57,7 +58,7 @@ func (app *Crawler) SetBlockResources(block bool) *Crawler {
 
 func (app *Crawler) EnableBoostCrawling() *Crawler {
 	app.engine.BoostCrawling = true
-	app.engine.ProxyServers = app.engine.getProxyList()
+	app.engine.ProxyServers = app.getProxyList()
 	return app
 }
 func (app *Crawler) SetCookieConsent(action *CookieAction) *Crawler {
@@ -82,14 +83,16 @@ func (app *Crawler) SetSleepAfter(sleepAfter int) *Crawler {
 }
 
 // Todo: getProxyList should be generate dynamically in future
-func (e *Engine) getProxyList() []Proxy {
+func (app *Crawler) getProxyList() []Proxy {
+	proxyEnv := app.Config.GetString("PROXY_SERVERS")
+	if proxyEnv == "" {
+		return nil // Return an empty list or handle the absence of proxies as needed
+	}
+
+	proxyUrls := strings.Split(proxyEnv, ",")
 	var proxies []Proxy
-	proxies = append(proxies, Proxy{
-		Server: "http://35.243.121.253:3000", // Proxy-server-1
-	}, Proxy{
-		Server: "http://34.84.85.49:3000", // Proxy-server-2
-	}, Proxy{
-		Server: "http://34.146.38.231:3000", // Proxy-server-3
-	})
+	for _, url := range proxyUrls {
+		proxies = append(proxies, Proxy{Server: url})
+	}
 	return proxies
 }

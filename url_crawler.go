@@ -8,7 +8,7 @@ import (
 
 func (app *Crawler) CrawlUrls(processorConfigs []ProcessorConfig) {
 	for _, processorConfig := range processorConfigs {
-		overrideEngineDefaults(app.engine, &processorConfig.Engine)
+		app.overrideEngineDefaults(app.engine, &processorConfig.Engine)
 		app.toggleClient()
 		processedUrls := make(map[string]bool) // Track processed URLs
 		total := int32(0)

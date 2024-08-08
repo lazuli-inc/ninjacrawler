@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 func (app *Crawler) CrawlUrls(processorConfigs []ProcessorConfig) {
@@ -44,16 +45,21 @@ func (app *Crawler) processUrls(productListData []UrlCollection, processorConfig
 
 func (app *Crawler) handleJob(urlCollections []UrlCollection, processorConfig ProcessorConfig, processedUrls map[string]bool, total *int32, counter int32, wg *sync.WaitGroup) {
 	defer wg.Done()
-	urlChan := make(chan UrlCollection, len(urlCollections))
-	resultChan := make(chan interface{}, len(urlCollections))
-	ctx, cancel := context.WithCancel(context.Background())
+
+	// Set a timeout for the context to prevent infinite waiting.
+	timeoutDuration := time.Duration(app.engine.CrawlTimeout) * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
 	defer cancel()
 
+	urlChan := make(chan UrlCollection, len(urlCollections))
+	resultChan := make(chan interface{}, len(urlCollections))
+
+	// Initialize the URL channel with the provided URLs
 	for _, urlCollection := range urlCollections {
 		urlChan <- urlCollection
 		if urlCollection.Attempts > 0 && urlCollection.Attempts <= app.engine.MaxRetryAttempts {
-			processedUrls[urlCollection.CurrentPageUrl] = false // Do Not Mark URL as processed
-			processedUrls[urlCollection.Url] = false            // Do Not Mark URL as processed
+			processedUrls[urlCollection.CurrentPageUrl] = false // Do not mark URL as processed
+			processedUrls[urlCollection.Url] = false            // Do not mark URL as processed
 		} else {
 			processedUrls[urlCollection.CurrentPageUrl] = true // Mark URL as processed
 			processedUrls[urlCollection.Url] = true            // Mark URL as processed
@@ -81,11 +87,13 @@ func (app *Crawler) handleJob(urlCollections []UrlCollection, processorConfig Pr
 		}(proxy)
 	}
 
+	// Close the result channel after all workers have finished
 	go func() {
 		innerWg.Wait()
 		close(resultChan)
 	}()
 
+	// Process the results as they come in
 	for results := range resultChan {
 		switch v := results.(type) {
 		case CrawlResult:
@@ -97,9 +105,10 @@ func (app *Crawler) handleJob(urlCollections []UrlCollection, processorConfig Pr
 		}
 	}
 
+	// Cancel the context if the dev crawl limit is reached
 	if app.isLocalEnv && atomic.LoadInt32(&counter) >= int32(app.engine.DevCrawlLimit) {
+		app.Logger.Warn("Dev Crawl limit reached. Cancelling job...")
 		cancel()
-		return
 	}
 }
 

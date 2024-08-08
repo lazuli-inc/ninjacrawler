@@ -25,6 +25,7 @@ type Engine struct {
 	MaxRetryAttempts        int
 	Args                    []string
 	SleepDuration           int
+	CrawlTimeout            int
 }
 type ProviderQueryOption struct {
 	JsRender             bool

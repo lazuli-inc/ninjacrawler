@@ -256,7 +256,7 @@ func (app *Crawler) getUrlCollections(collection string) []UrlCollection {
 
 // filterUrlData retrieves URL collections from a collection based on a filter condition.
 func (app *Crawler) filterUrlData(filterCondition bson.D, mongoCollection *mongo.Collection) []UrlCollection {
-	findOptions := options.Find().SetLimit(500)
+	findOptions := options.Find().SetLimit(100)
 
 	cursor, err := mongoCollection.Find(context.TODO(), filterCondition, findOptions)
 	if err != nil {
@@ -273,7 +273,7 @@ func (app *Crawler) filterUrlData(filterCondition bson.D, mongoCollection *mongo
 
 // filterData retrieves documents from a collection based on a filter condition.
 func filterData(filterCondition bson.D, mongoCollection *mongo.Collection) []bson.M {
-	findOptions := options.Find().SetLimit(1000)
+	findOptions := options.Find().SetLimit(100)
 
 	cursor, err := mongoCollection.Find(context.TODO(), filterCondition, findOptions)
 	if err != nil {

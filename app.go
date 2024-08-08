@@ -207,6 +207,7 @@ func getDefaultEngine() Engine {
 			UsePremiumProxyRetry: false,
 		},
 		SleepDuration: 10,
+		CrawlTimeout:  120,
 	}
 }
 
@@ -276,7 +277,11 @@ func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 		defaultEngine.ProviderOption.UsePremiumProxyRetry = eng.ProviderOption.UsePremiumProxyRetry
 	}
 	defaultEngine.BlockedURLs = append(defaultEngine.BlockedURLs, eng.BlockedURLs...)
+
 	if eng.SleepDuration > 0 {
 		defaultEngine.SleepDuration = eng.SleepDuration
+	}
+	if eng.CrawlTimeout > 0 {
+		defaultEngine.CrawlTimeout = eng.CrawlTimeout
 	}
 }

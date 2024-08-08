@@ -2,6 +2,7 @@ package ninjacrawler
 
 import (
 	"context"
+	"errors"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/playwright-community/playwright-go"
 	"strings"
@@ -29,7 +30,12 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-ctx.Done(): // Handle context timeout or cancellation
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				app.Logger.Warn("Crawl worker timed out")
+			} else if errors.Is(ctx.Err(), context.Canceled) {
+				app.Logger.Info("Crawl worker was canceled")
+			}
 			return
 		case urlCollection, more := <-urlChan:
 			if !more {
@@ -70,19 +76,18 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 			}
 
 			if err != nil {
-				if strings.Contains(err.Error(), "StatusCode:404") {
-					if markErr := app.MarkAsMaxErrorAttempt(urlCollection.Url, processorConfig.OriginCollection, err.Error()); markErr != nil {
-						app.Logger.Error(markErr.Error())
+				if strings.Contains(err.Error(), "StatusCode:40") {
+					if markMaxErr := app.MarkAsMaxErrorAttempt(urlCollection.Url, processorConfig.OriginCollection, err.Error()); markMaxErr != nil {
+						app.Logger.Error("markMaxErr: ", markMaxErr.Error())
 						return
 					}
-					continue
 				} else {
 					if markErr := app.markAsError(urlCollection.Url, processorConfig.OriginCollection, err.Error()); markErr != nil {
-						app.Logger.Error(markErr.Error())
-						continue
+						app.Logger.Error("markErr: ", markErr.Error())
+						return
 					}
 				}
-				app.Logger.Error(err.Error())
+				app.Logger.Error("Error crawling %s: %v", urlCollection.Url, err)
 				continue
 			}
 

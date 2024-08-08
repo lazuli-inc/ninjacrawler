@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"plugin"
 	"regexp"
@@ -400,10 +401,35 @@ func (app *Crawler) CheckContentType(url string) (string, error) {
 }
 
 // IsHTMLPage checks if the Content-Type indicates an HTML page
-func (app *Crawler) IsHTMLPage(urlStr string) bool {
-	ContentType, err := app.CheckContentType(urlStr)
-	if err != nil {
-		return false
+//
+//	func (app *Crawler) IsHTMLPage(urlStr string) bool {
+//		ContentType, err := app.CheckContentType(urlStr)
+//		if err != nil {
+//			return false
+//		}
+//		return strings.Contains(ContentType, "text/html")
+//	}
+//
+// IsHTMLPage checks if the URL has an HTML-related file extension
+func (app *Crawler) IsValidPage(urlStr string) bool {
+	var htmlExtensions = []string{".html", ".htm", ".php", ".asp", ".aspx", ".jsp"}
+	ext := app.GetUrlFileExtension(urlStr)
+	// Check if the URL has a valid HTML extension
+	for _, pExt := range htmlExtensions {
+		if ext == "" || ext == pExt {
+			return true
+		}
 	}
-	return strings.Contains(ContentType, "text/html")
+	return false
+}
+func (app *Crawler) GetUrlFileExtension(urlString string) string {
+	u, err := url.Parse(urlString)
+	if err != nil {
+		fmt.Println("Error parsing URL:", err)
+		return ""
+	}
+	fileName := path.Base(u.Path)
+	extension := filepath.Ext(fileName)
+
+	return extension
 }

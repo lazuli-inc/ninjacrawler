@@ -207,7 +207,7 @@ func getDefaultEngine() Engine {
 			UsePremiumProxyRetry: false,
 		},
 		SleepDuration: 10,
-		CrawlTimeout:  120,
+		CrawlTimeout:  1000,
 	}
 }
 

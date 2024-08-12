@@ -81,6 +81,7 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 		if app.engine.ProviderOption.JsRender {
 			proxyOption = "&js_render=true"
 		}
+		urlString = app.GetQueryEscapeFullUrl(urlString)
 		urlString = fmt.Sprintf("https://api.zenrows.com/v1/?apikey=%s&url=%s&custom_headers=true%s", zenrowsApiKey, urlString, proxyOption)
 	} else {
 		if len(app.engine.ProxyServers) > 0 {

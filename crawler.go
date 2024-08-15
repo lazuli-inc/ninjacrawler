@@ -46,7 +46,6 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 				for _, preHandler := range processorConfig.Preference.PreHandlers {
 					err := preHandler(PreHandlerContext{UrlCollection: urlCollection, App: app})
 					if err != nil {
-						app.Logger.Warn("Failed to...%s", err.Error())
 						preHandlerError = true
 					}
 				}

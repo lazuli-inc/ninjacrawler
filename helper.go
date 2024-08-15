@@ -416,7 +416,7 @@ func (app *Crawler) IsValidPage(urlStr string) bool {
 	ext := app.GetUrlFileExtension(urlStr)
 	// Check if the URL has a valid HTML extension
 	for _, pExt := range htmlExtensions {
-		if ext == "" || ext == pExt {
+		if ext == "" || ext == "." || ext == pExt {
 			return true
 		}
 	}

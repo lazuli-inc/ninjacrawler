@@ -133,8 +133,8 @@ func (app *Crawler) saveProductDetail(model string, productDetail *ProductDetail
 	}
 }
 
-// markAsError marks a URL collection as having encountered an error and updates the database.
-func (app *Crawler) markAsError(url string, dbCollection string, errStr string) error {
+// MarkAsError marks a URL collection as having encountered an error and updates the database.
+func (app *Crawler) MarkAsError(url string, dbCollection string, errStr string, attempt ...int32) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var result bson.M
@@ -148,6 +148,9 @@ func (app *Crawler) markAsError(url string, dbCollection string, errStr string) 
 	}
 	timeNow := time.Now()
 	attempts := result["attempts"].(int32) + 1
+	if attempt != nil {
+		attempts = attempt[0]
+	}
 	update := bson.D{
 		{Key: "$set", Value: bson.D{
 			{Key: "error", Value: true},

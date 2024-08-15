@@ -283,7 +283,7 @@ func (app *Crawler) handleProductDetail(res *ProductDetail, processorConfig Proc
 			html = app.getHtmlFromPage(v.Page)
 		}
 		app.Logger.Html(html, v.UrlCollection.Url, msg)
-		err := app.markAsError(v.UrlCollection.Url, processorConfig.OriginCollection, msg)
+		err := app.MarkAsError(v.UrlCollection.Url, processorConfig.OriginCollection, msg)
 		if err != nil {
 			return err
 		}
@@ -294,7 +294,7 @@ func (app *Crawler) handleProductDetail(res *ProductDetail, processorConfig Proc
 		err := app.submitProductData(res)
 		if err != nil {
 			app.Logger.Fatal("Failed to submit product data to API Server: %v", err)
-			err := app.markAsError(v.UrlCollection.Url, processorConfig.OriginCollection, err.Error())
+			err := app.MarkAsError(v.UrlCollection.Url, processorConfig.OriginCollection, err.Error())
 			if err != nil {
 				return err
 			}

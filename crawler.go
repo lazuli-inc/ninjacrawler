@@ -82,7 +82,7 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 						return
 					}
 				} else {
-					if markErr := app.markAsError(urlCollection.Url, processorConfig.OriginCollection, err.Error()); markErr != nil {
+					if markErr := app.MarkAsError(urlCollection.Url, processorConfig.OriginCollection, err.Error()); markErr != nil {
 						app.Logger.Error("markErr: ", markErr.Error())
 						return
 					}
@@ -143,7 +143,7 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 					app.insert(processorConfig.Entity, collections, urlCollection.Url)
 				})
 				if handleErr != nil {
-					markAsError := app.markAsError(urlCollection.Url, processorConfig.OriginCollection, handleErr.Error())
+					markAsError := app.MarkAsError(urlCollection.Url, processorConfig.OriginCollection, handleErr.Error())
 					if markAsError != nil {
 						app.Logger.Info(markAsError.Error())
 						return
@@ -211,7 +211,7 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 					}
 				})
 				if handleErr != nil {
-					markAsError := app.markAsError(urlCollection.Url, processorConfig.OriginCollection, handleErr.Error())
+					markAsError := app.MarkAsError(urlCollection.Url, processorConfig.OriginCollection, handleErr.Error())
 					if markAsError != nil {
 						app.Logger.Info(markAsError.Error())
 						return

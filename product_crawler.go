@@ -205,6 +205,33 @@ func (app *Crawler) crawlPageDetailRecursiveDeprecated(processorConfig Processor
 
 // validateRequiredFields checks if the required fields are non-empty in the ProductDetail struct.
 // Returns two slices: one for invalid fields and one for unknown fields.
+/*
+Required Field:
+
+Rule: "FieldName|required"
+Example: "PageTitle|required"
+String Type Check:
+
+Rule: "FieldName|string"
+Example: "Description|string"
+Maximum Length:
+
+Rule: "FieldName|max:<length>"
+Example: "PageTitle|max:100"
+Trim Check:
+
+Rule: "FieldName|trim"
+Example: "PageTitle|trim"
+Blacklist Values:
+
+Rule: "FieldName|blacklists:<value1>,<value2>"
+Example: "SellingPrice|blacklists:0,99999"
+Combined Rules:
+
+Rule: "FieldName|required|string|max:<length>|trim|blacklists:<value1>,<value2>"
+Example: "SellingPrice|required|string|max:10|trim|blacklists:0,99999"
+
+*/
 func validateRequiredFields(product *ProductDetail, validationRules []string) ([]string, []string) {
 	var invalidFields []string
 	var unknownFields []string
@@ -287,6 +314,7 @@ func (app *Crawler) handleProductDetail(res *ProductDetail, processorConfig Proc
 		if err != nil {
 			return err
 		}
+		return fmt.Errorf(msg)
 	}
 
 	app.saveProductDetail(processorConfig.Entity, res)

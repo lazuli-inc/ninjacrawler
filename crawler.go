@@ -54,6 +54,9 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 				continue
 			}
 			crawlableUrl := urlCollection.Url
+			if urlCollection.ApiUrl != "" {
+				crawlableUrl = urlCollection.ApiUrl
+			}
 			if urlCollection.CurrentPageUrl != "" {
 				crawlableUrl = urlCollection.CurrentPageUrl
 			}

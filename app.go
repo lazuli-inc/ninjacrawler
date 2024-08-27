@@ -109,7 +109,8 @@ func (app *Crawler) Stop() {
 		app.closeClient()
 	}
 	// upload logs
-	if !app.isLocalEnv {
+	uploadLogs := app.Config.GetBool("UPLOAD_LOGS")
+	if !app.isLocalEnv || uploadLogs {
 		app.UploadLogs()
 	}
 	duration := time.Since(startTime)
@@ -205,6 +206,8 @@ func getDefaultEngine() Engine {
 		ProviderOption: ProviderQueryOption{
 			JsRender:             false,
 			UsePremiumProxyRetry: false,
+			OriginalStatus:       true,
+			CustomHeaders:        true,
 		},
 		SleepDuration: 10,
 		CrawlTimeout:  99999,
@@ -271,6 +274,74 @@ func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 
 	if eng.ProviderOption.JsRender {
 		defaultEngine.ProviderOption.JsRender = eng.ProviderOption.JsRender
+	}
+
+	if eng.ProviderOption.CustomHeaders {
+		defaultEngine.ProviderOption.CustomHeaders = eng.ProviderOption.CustomHeaders
+	}
+
+	if eng.ProviderOption.PremiumProxy {
+		defaultEngine.ProviderOption.PremiumProxy = eng.ProviderOption.PremiumProxy
+	}
+
+	if eng.ProviderOption.ProxyCountry != "" {
+		defaultEngine.ProviderOption.ProxyCountry = eng.ProviderOption.ProxyCountry
+	}
+
+	if eng.ProviderOption.SessionID != 0 {
+		defaultEngine.ProviderOption.SessionID = eng.ProviderOption.SessionID
+	}
+
+	if eng.ProviderOption.Device != "" {
+		defaultEngine.ProviderOption.Device = eng.ProviderOption.Device
+	}
+
+	if eng.ProviderOption.OriginalStatus {
+		defaultEngine.ProviderOption.OriginalStatus = eng.ProviderOption.OriginalStatus
+	}
+
+	if eng.ProviderOption.AllowedStatusCodes != "" {
+		defaultEngine.ProviderOption.AllowedStatusCodes = eng.ProviderOption.AllowedStatusCodes
+	}
+
+	if eng.ProviderOption.WaitFor != "" {
+		defaultEngine.ProviderOption.WaitFor = eng.ProviderOption.WaitFor
+	}
+
+	if eng.ProviderOption.Wait != 0 {
+		defaultEngine.ProviderOption.Wait = eng.ProviderOption.Wait
+	}
+
+	if eng.ProviderOption.BlockResources != "" {
+		defaultEngine.ProviderOption.BlockResources = eng.ProviderOption.BlockResources
+	}
+
+	if eng.ProviderOption.JSONResponse {
+		defaultEngine.ProviderOption.JSONResponse = eng.ProviderOption.JSONResponse
+	}
+
+	if eng.ProviderOption.CSSExtractor != "" {
+		defaultEngine.ProviderOption.CSSExtractor = eng.ProviderOption.CSSExtractor
+	}
+
+	if eng.ProviderOption.Autoparse {
+		defaultEngine.ProviderOption.Autoparse = eng.ProviderOption.Autoparse
+	}
+
+	if eng.ProviderOption.MarkdownResponse {
+		defaultEngine.ProviderOption.MarkdownResponse = eng.ProviderOption.MarkdownResponse
+	}
+
+	if eng.ProviderOption.Screenshot {
+		defaultEngine.ProviderOption.Screenshot = eng.ProviderOption.Screenshot
+	}
+
+	if eng.ProviderOption.ScreenshotFullPage {
+		defaultEngine.ProviderOption.ScreenshotFullPage = eng.ProviderOption.ScreenshotFullPage
+	}
+
+	if eng.ProviderOption.ScreenshotSelector != "" {
+		defaultEngine.ProviderOption.ScreenshotSelector = eng.ProviderOption.ScreenshotSelector
 	}
 
 	if eng.ProviderOption.UsePremiumProxyRetry {

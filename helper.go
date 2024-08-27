@@ -3,6 +3,7 @@ package ninjacrawler
 import (
 	"cloud.google.com/go/compute/metadata"
 	"context"
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
@@ -122,16 +123,26 @@ func (app *Crawler) writePageContentToFile(html, url, msg string) error {
 
 // generateFilename generates a filename based on URL and current date
 func generateFilename(rawURL string) string {
+	// Hash the URL to create a unique, short identifier
+	hasher := sha1.New()
+	hasher.Write([]byte(rawURL))
+	hash := fmt.Sprintf("%x", hasher.Sum(nil)) // Convert hash to hex string
 
-	// Replace remaining characters not allowed in file names
+	// Replace characters not allowed in file names
 	invalidChars := []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|"}
 	for _, char := range invalidChars {
 		rawURL = strings.ReplaceAll(rawURL, char, "_")
 	}
 
-	// Combine the encoded path with current date and a suitable extension
+	// Trim the URL to a maximum length (e.g., 50 characters)
+	trimmedURL := rawURL
+	if len(trimmedURL) > 50 {
+		trimmedURL = trimmedURL[:50]
+	}
+
+	// Combine the trimmed URL with the hash and current date
 	currentDate := time.Now().Format("2006-01-02")
-	return currentDate + "_" + rawURL + ".html"
+	return fmt.Sprintf("%s_%s_%s.html", currentDate, trimmedURL, hash)
 }
 func generateCsvFileName(siteName string) string {
 	productDetailsFileName := fmt.Sprintf("storage/data/%s/%s.csv", siteName, time.Now().Format("2006_01_02"))
@@ -238,7 +249,15 @@ func (app *Crawler) GetQueryEscapeFullUrl(urlStr string) string {
 		fullUrl = app.BaseUrl + urlStr
 	}
 
-	encodedURL := url.QueryEscape(fullUrl)
+	parsedUrl, err := url.Parse(fullUrl)
+	if err != nil {
+		return ""
+	}
+
+	// Encode only the query part, not the entire URL
+	parsedUrl.RawQuery = parsedUrl.Query().Encode()
+	//encodedURL := url.QueryEscape(fullUrl)
+	encodedURL := parsedUrl.String()
 	return encodedURL
 }
 

@@ -25,13 +25,13 @@ func (app *Crawler) GetHttpClient() *http.Client {
 }
 
 func (app *Crawler) NavigateToStaticURL(client *http.Client, urlString string, proxyServer Proxy) (*goquery.Document, error) {
-	body, err := app.getResponseBody(client, urlString, proxyServer, 0)
+	body, ContentType, err := app.getResponseBody(client, urlString, proxyServer, 0)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create a reader that can decode the response body with the correct encoding
-	reader, err := charset.NewReader(strings.NewReader(string(body)), "")
+	reader, err := charset.NewReader(strings.NewReader(string(body)), ContentType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create reader with correct encoding: %w", err)
 	}
@@ -44,7 +44,7 @@ func (app *Crawler) NavigateToStaticURL(client *http.Client, urlString string, p
 }
 
 func (app *Crawler) NavigateToApiURL(client *http.Client, urlString string, proxyServer Proxy) (map[string]interface{}, error) {
-	body, err := app.getResponseBody(client, urlString, proxyServer, 0)
+	body, _, err := app.getResponseBody(client, urlString, proxyServer, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -59,8 +59,11 @@ func (app *Crawler) NavigateToApiURL(client *http.Client, urlString string, prox
 	return jsonResponse, nil
 }
 
-func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxyServer Proxy, attempt int) ([]byte, error) {
+func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxyServer Proxy, attempt int) ([]byte, string, error) {
 	proxyIp := ""
+	ContentType := ""
+	urlString = app.GetQueryEscapeFullUrl(urlString)
+
 	httpTransport := &http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			conn, err := net.Dial(network, addr)
@@ -77,12 +80,9 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 	if app.engine.Provider == "zenrows" {
 
 		zenrowsApiKey := app.Config.EnvString("ZENROWS_API_KEY")
-		proxyOption := ""
-		if app.engine.ProviderOption.JsRender {
-			proxyOption = "&js_render=true"
-		}
-		urlString = app.GetQueryEscapeFullUrl(urlString)
-		urlString = fmt.Sprintf("https://api.zenrows.com/v1/?apikey=%s&url=%s&custom_headers=true&original_status=true%s", zenrowsApiKey, urlString, proxyOption)
+		queryString := app.BuildQueryString()
+		urlString = fmt.Sprintf("https://api.zenrows.com/v1/?apikey=%s&url=%s&%s", zenrowsApiKey, urlString, queryString)
+
 	} else {
 		if len(app.engine.ProxyServers) > 0 {
 			proxyURL, err := url.Parse(proxyServer.Server)
@@ -111,7 +111,7 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 	}
 	req, err := http.NewRequest("GET", urlString, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create request: %v", err)
+		return nil, ContentType, fmt.Errorf("Failed to create request: %v", err)
 	}
 
 	req.Header.Set("User-Agent", app.userAgent)
@@ -119,15 +119,15 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, ContentType, err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
+		return nil, ContentType, fmt.Errorf("failed to read response body: %w", err)
 	}
-
+	ContentType = resp.Header.Get("Content-Type")
 	if resp.StatusCode != http.StatusOK {
 		msg := fmt.Sprintf("failed to fetch page: StatusCode:%v and Status:%v", resp.StatusCode, resp.Status)
 		app.Logger.Html(string(body), urlString, msg)
@@ -142,14 +142,14 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 				fmt.Println("Zenrows response: ", jsonResponse)
 				urlString += "&premium_proxy=true&proxy_country=jp"
 				app.Logger.Warn("retrying with premium proxy: %s", urlString)
-				body, err = app.getResponseBody(client, urlString, proxyServer, attempt)
+				body, ContentType, err = app.getResponseBody(client, urlString, proxyServer, attempt)
 				if err != nil {
-					return nil, err
+					return nil, ContentType, err
 				}
-				return body, nil
+				return body, ContentType, nil
 			}
 		}
-		return nil, fmt.Errorf(msg)
+		return nil, ContentType, fmt.Errorf(msg)
 	}
-	return body, nil
+	return body, ContentType, nil
 }

@@ -14,6 +14,7 @@ type SiteCollection struct {
 type UrlCollection struct {
 	Url            string                 `json:"url" bson:"url"`
 	Parent         string                 `json:"parent" bson:"parent"`
+	ApiUrl         string                 `json:"api_url" bson:"api_url"`
 	CurrentPageUrl string                 `json:"current_page_url" bson:"current_page_url"`
 	Status         bool                   `json:"status" bson:"status"`
 	Error          bool                   `json:"error" bson:"error"`

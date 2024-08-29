@@ -84,7 +84,7 @@ func (app *Crawler) Start() {
 }
 
 func (app *Crawler) toggleClient() {
-	if app.engine.IsDynamic {
+	if *app.engine.IsDynamic {
 		pw, err := app.GetPlaywright()
 		if err != nil {
 			app.Logger.Fatal("failed to initialize playwright: %v\n", err)
@@ -184,7 +184,7 @@ func getDefaultEngine() Engine {
 		BrowserType:             "chromium",
 		Provider:                "http",
 		ConcurrentLimit:         1,
-		IsDynamic:               false,
+		IsDynamic:               Bool(false),
 		WaitForDynamicRendering: false,
 		DevCrawlLimit:           100,
 		BlockResources:          false,
@@ -224,7 +224,7 @@ func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	if eng.ConcurrentLimit > 0 {
 		defaultEngine.ConcurrentLimit = eng.ConcurrentLimit
 	}
-	if eng.IsDynamic {
+	if eng.IsDynamic != nil {
 		defaultEngine.IsDynamic = eng.IsDynamic
 	}
 	if eng.WaitForDynamicRendering {

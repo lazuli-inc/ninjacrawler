@@ -162,6 +162,11 @@ func (app *Crawler) GetFullUrl(url string) string {
 		}
 		return "http:" + url
 	}
+	// If the URL doesn't start with "/", add the "/products" prefix
+	if !strings.HasPrefix(url, "/") {
+		url = "/" + url
+	}
+
 	// Otherwise, concatenate with BaseUrl
 	return app.BaseUrl + url
 }

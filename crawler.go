@@ -17,7 +17,7 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 	var doc *goquery.Document
 	var apiResponse map[string]interface{}
 
-	if app.engine.IsDynamic {
+	if *app.engine.IsDynamic {
 		browser, page, err = app.GetBrowserPage(app.pw, app.engine.BrowserType, proxy)
 		if err != nil {
 			app.Logger.Fatal(err.Error())
@@ -66,7 +66,7 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 			} else {
 				app.Logger.Info("Crawling :%s: %s", processorConfig.OriginCollection, crawlableUrl)
 			}
-			if app.engine.IsDynamic {
+			if *app.engine.IsDynamic {
 				doc, err = app.NavigateToURL(page, crawlableUrl)
 			} else {
 				switch processorConfig.Processor.(type) {

@@ -13,7 +13,7 @@ type Engine struct {
 	ProviderOption          ProviderQueryOption
 	BrowserType             string
 	ConcurrentLimit         int
-	IsDynamic               bool
+	IsDynamic               *bool
 	DevCrawlLimit           int
 	BlockResources          bool
 	JavaScriptEnabled       bool
@@ -62,7 +62,7 @@ func (app *Crawler) SetConcurrentLimit(concurrentLimit int) *Crawler {
 }
 
 func (app *Crawler) IsDynamicPage(isDynamic bool) *Crawler {
-	app.engine.IsDynamic = isDynamic
+	app.engine.IsDynamic = &isDynamic
 	app.toggleClient()
 	return app
 }

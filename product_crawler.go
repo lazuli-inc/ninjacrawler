@@ -252,7 +252,7 @@ func validateRequiredFields(product *ProductDetail, validationRules []string) ([
 
 		fieldValue := v.FieldByName(field)
 		fieldValueStr := fmt.Sprintf("%v", fieldValue.Interface())
-		if fieldValueStr == "" {
+		if fieldValueStr == "" || fieldValue.IsZero() || !fieldValue.IsValid() {
 			invalidFields = append(invalidFields, fmt.Sprintf("%s: required", f.Name))
 		}
 		for _, r := range rules {
@@ -306,7 +306,7 @@ func (app *Crawler) handleProductDetail(res *ProductDetail, processorConfig Proc
 	if len(invalidFields) > 0 {
 		msg := fmt.Sprintf("Validation failed: %v\n", invalidFields)
 		html, _ := v.Document.Html()
-		if app.engine.IsDynamic {
+		if *app.engine.IsDynamic {
 			html = app.getHtmlFromPage(v.Page)
 		}
 		app.Logger.Html(html, v.UrlCollection.Url, msg)

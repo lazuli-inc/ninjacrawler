@@ -83,6 +83,7 @@ func (app *Crawler) InsertUrlCollections(model string, urlCollections []UrlColle
 	for _, urlCollection := range urlCollections {
 		urlCollection := UrlCollection{
 			Url:       urlCollection.Url,
+			ApiUrl:    urlCollection.ApiUrl,
 			Parent:    parent,
 			Status:    false,
 			Error:     false,

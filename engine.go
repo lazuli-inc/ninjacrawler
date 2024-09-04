@@ -28,6 +28,7 @@ type Engine struct {
 	Args                    []string
 	SleepDuration           int
 	CrawlTimeout            int
+	WaitForSelector         *string
 }
 type ProviderQueryOption struct {
 	JsRender             bool

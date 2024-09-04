@@ -209,8 +209,9 @@ func getDefaultEngine() Engine {
 			OriginalStatus:       true,
 			CustomHeaders:        true,
 		},
-		SleepDuration: 10,
-		CrawlTimeout:  99999,
+		SleepDuration:   10,
+		CrawlTimeout:    99999,
+		WaitForSelector: nil,
 	}
 }
 
@@ -354,5 +355,8 @@ func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	}
 	if eng.CrawlTimeout > 0 {
 		defaultEngine.CrawlTimeout = eng.CrawlTimeout
+	}
+	if eng.WaitForSelector != nil {
+		defaultEngine.WaitForSelector = eng.WaitForSelector
 	}
 }

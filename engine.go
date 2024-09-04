@@ -27,6 +27,7 @@ type Engine struct {
 	MaxRetryAttempts        int
 	Args                    []string
 	SleepDuration           int
+	RetrySleepDuration      int
 	CrawlTimeout            int
 	WaitForSelector         *string
 }

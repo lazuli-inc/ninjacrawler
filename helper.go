@@ -457,3 +457,11 @@ func (app *Crawler) GetUrlFileExtension(urlString string) string {
 
 	return extension
 }
+
+func (app *Crawler) handleThrottling(attempt int) {
+	if attempt > 0 {
+		sleepDuration := time.Duration(app.engine.RetrySleepDuration) * time.Minute * time.Duration(attempt)
+		app.Logger.Info("Sleeping for %s before retry...", sleepDuration)
+		time.Sleep(sleepDuration)
+	}
+}

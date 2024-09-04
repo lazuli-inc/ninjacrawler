@@ -83,6 +83,7 @@ func (app *Crawler) handleJob(urlCollections []UrlCollection, processorConfig Pr
 		go func(proxy Proxy) {
 			defer innerWg.Done()
 			app.CurrentProxy = proxy
+			app.CurrentCollection = processorConfig.OriginCollection
 			app.crawlWorker(ctx, processorConfig, urlChan, resultChan, proxy, app.isLocalEnv, &counter)
 		}(proxy)
 	}

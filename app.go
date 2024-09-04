@@ -33,6 +33,8 @@ type Crawler struct {
 	preference            *AppPreference
 	userAgent             string
 	CurrentProxy          Proxy
+	CurrentCollection     string
+	CurrentUrl            string
 }
 
 func NewCrawler(name, url string, engines ...Engine) *Crawler {
@@ -209,9 +211,10 @@ func getDefaultEngine() Engine {
 			OriginalStatus:       true,
 			CustomHeaders:        true,
 		},
-		SleepDuration:   10,
-		CrawlTimeout:    99999,
-		WaitForSelector: nil,
+		SleepDuration:      10,
+		RetrySleepDuration: 0, //30min
+		CrawlTimeout:       999999,
+		WaitForSelector:    nil,
 	}
 }
 
@@ -352,6 +355,9 @@ func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 
 	if eng.SleepDuration > 0 {
 		defaultEngine.SleepDuration = eng.SleepDuration
+	}
+	if eng.RetrySleepDuration > 0 {
+		defaultEngine.RetrySleepDuration = eng.RetrySleepDuration
 	}
 	if eng.CrawlTimeout > 0 {
 		defaultEngine.CrawlTimeout = eng.CrawlTimeout

@@ -41,6 +41,9 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 			if !more {
 				return
 			}
+			if app.engine.RetrySleepDuration > 0 && urlCollection.StatusCode == 403 {
+				app.handleThrottling(urlCollection.Attempts)
+			}
 			preHandlerError := false
 			if processorConfig.Preference.PreHandlers != nil { // Execute pre handlers
 				for _, preHandler := range processorConfig.Preference.PreHandlers {

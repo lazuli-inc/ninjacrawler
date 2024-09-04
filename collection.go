@@ -18,6 +18,7 @@ type UrlCollection struct {
 	CurrentPageUrl string                 `json:"current_page_url" bson:"current_page_url"`
 	Status         bool                   `json:"status" bson:"status"`
 	Error          bool                   `json:"error" bson:"error"`
+	StatusCode     int                    `json:"status_code" bson:"status_code"`
 	Attempts       int                    `json:"attempts" bson:"attempts"`
 	MetaData       map[string]interface{} `json:"meta_data" bson:"meta_data"`
 	CreatedAt      time.Time              `json:"created_at" bson:"created_at"`

@@ -33,6 +33,7 @@ func exportProductDetailsToCSV(crawler *Crawler, collection string, startPage in
 		fileNameParts := strings.Split(fileName, "/")
 		uploadFileName := fileNameParts[len(fileNameParts)-1]
 		uploadToBucket(crawler, fileName, uploadFileName)
+		crawler.Logger.Info("File %s uploaded to bucket successfully", fileName)
 	}
 }
 

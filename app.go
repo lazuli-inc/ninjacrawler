@@ -120,6 +120,8 @@ func (app *Crawler) Stop() {
 }
 
 func (app *Crawler) UploadLogs() {
+	app.Logger.Info("Uploading logs...")
+	total := 0
 	storagePath := fmt.Sprintf("storage/logs/%s", app.Name)
 	err := filepath.Walk(storagePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -130,10 +132,13 @@ func (app *Crawler) UploadLogs() {
 		if !info.IsDir() {
 			relativePath := strings.TrimPrefix(path, storagePath+"/")
 			uploadToBucket(app, path, fmt.Sprintf("logs/%s", relativePath))
+			total++
 		}
 
 		return nil
 	})
+
+	app.Logger.Info("Total %d File uploaded to bucket successfully", total)
 
 	if err != nil {
 		app.Logger.Error("Error walking through storage directory: %v", err)

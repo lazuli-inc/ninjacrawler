@@ -145,7 +145,6 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 		if app.engine.RetrySleepDuration > 0 && (resp.StatusCode == 403) {
 			app.Logger.Error("failed: StatusCode:%v and Status:%v", resp.StatusCode, resp.Status)
 			app.handleThrottling(1)
-			return app.getResponseBody(client, urlString, proxyServer, attempt)
 		}
 		msg := fmt.Sprintf("failed to fetch page: StatusCode:%v and Status:%v", resp.StatusCode, resp.Status)
 		app.Logger.Html(string(body), urlString, msg)

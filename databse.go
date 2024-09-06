@@ -3,6 +3,7 @@ package ninjacrawler
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -358,4 +359,13 @@ func (app *Crawler) GetProductDetailCollections(collection string, currentPage i
 		app.Logger.Error(err.Error())
 	}
 	return results
+}
+func (app *Crawler) GetDataCount(collection string) string {
+	dataCollection := app.getCollection(collection)
+	count, err := dataCollection.CountDocuments(context.TODO(), bson.D{{}})
+	if err != nil {
+		count = 0
+	}
+
+	return strconv.Itoa(int(count))
 }

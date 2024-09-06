@@ -9,6 +9,7 @@ import (
 
 func (app *Crawler) CrawlUrls(processorConfigs []ProcessorConfig) {
 	for _, processorConfig := range processorConfigs {
+		app.Logger.Summary("Starting :%s: Crawler", processorConfig.OriginCollection)
 		app.overrideEngineDefaults(app.engine, &processorConfig.Engine)
 		app.toggleClient()
 		processedUrls := make(map[string]bool) // Track processed URLs
@@ -17,6 +18,8 @@ func (app *Crawler) CrawlUrls(processorConfigs []ProcessorConfig) {
 		if atomic.LoadInt32(&total) > 0 {
 			app.Logger.Info("[Total (%d) :%s: found from :%s:]", atomic.LoadInt32(&total), processorConfig.Entity, processorConfig.OriginCollection)
 		}
+		dataCount := app.GetDataCount(processorConfig.OriginCollection)
+		app.Logger.Summary("[Total (%s) :%s: found from :%s:]", dataCount, processorConfig.Entity, processorConfig.OriginCollection)
 	}
 }
 func (app *Crawler) crawlUrlsRecursive(processorConfig ProcessorConfig, processedUrls map[string]bool, total *int32, counter int32) {

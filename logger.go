@@ -90,10 +90,11 @@ func (l *defaultLogger) logWithGCP(level string, format string, args ...interfac
 	if l.gcpLogger != nil && level == "summary" {
 		l.gcpLogger.Log(logging.Entry{
 			Payload: map[string]interface{}{
-				"level":  "info",
-				"caller": "ninjacrawler/logger.go",
-				"ts":     ts,
-				"msg":    msg,
+				"level":     "info",
+				"caller":    "ninjacrawler/logger.go",
+				"ts":        ts,
+				"msg":       msg,
+				"site_name": l.app.Name,
 			},
 			Severity: logging.Info,
 		})
@@ -103,10 +104,11 @@ func (l *defaultLogger) logWithGCP(level string, format string, args ...interfac
 	if level == "debug" {
 		l.gcpDebugLogger.Log(logging.Entry{
 			Payload: map[string]interface{}{
-				"level":  "error",
-				"caller": "ninjacrawler/logger.go",
-				"ts":     ts,
-				"msg":    msg,
+				"level":     "error",
+				"caller":    "ninjacrawler/logger.go",
+				"ts":        ts,
+				"msg":       msg,
+				"site_name": l.app.Name,
 			},
 			Severity: logging.Debug,
 		})

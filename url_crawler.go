@@ -20,6 +20,11 @@ func (app *Crawler) CrawlUrls(processorConfigs []ProcessorConfig) {
 		}
 		dataCount := app.GetDataCount(processorConfig.OriginCollection)
 		app.Logger.Summary("[Total (%s) :%s: found from :%s:]", dataCount, processorConfig.Entity, processorConfig.OriginCollection)
+
+		errDataCount := app.GetErrorDataCount(processorConfig.OriginCollection)
+		if errDataCount > 0 {
+			app.Logger.Summary("Error count: %s", errDataCount)
+		}
 	}
 }
 func (app *Crawler) crawlUrlsRecursive(processorConfig ProcessorConfig, processedUrls map[string]bool, total *int32, counter int32) {

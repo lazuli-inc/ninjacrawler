@@ -26,6 +26,11 @@ func (app *Crawler) CrawlPageDetail(processorConfigs []ProcessorConfig) {
 		}
 		dataCount := app.GetDataCount(processorConfig.OriginCollection)
 		app.Logger.Summary("Data count: %s", dataCount)
+
+		errDataCount := app.GetErrorDataCount(processorConfig.OriginCollection)
+		if errDataCount > 0 {
+			app.Logger.Summary("Error count: %s", errDataCount)
+		}
 		exportProductDetailsToCSV(app, processorConfig.Entity, 1)
 	}
 }

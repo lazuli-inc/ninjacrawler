@@ -369,3 +369,19 @@ func (app *Crawler) GetDataCount(collection string) string {
 
 	return strconv.Itoa(int(count))
 }
+func (app *Crawler) GetErrorDataCount(collection string) int {
+	dataCollection := app.getCollection(collection)
+
+	// Add conditions for status: false and error: true
+	filter := bson.D{
+		{"status", false},
+		{"error", true},
+	}
+
+	count, err := dataCollection.CountDocuments(context.TODO(), filter)
+	if err != nil {
+		count = 0
+	}
+
+	return int(count)
+}

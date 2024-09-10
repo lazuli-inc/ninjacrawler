@@ -146,7 +146,7 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 		if app.engine.RetrySleepDuration > 0 && (resp.StatusCode == 403) {
 			app.Logger.Error("failed: StatusCode:%v and Status:%v", resp.StatusCode, resp.Status)
 			app.Logger.Debug("Got Blocked at URL: %s Error: %v\n", app.CurrentUrl, msg)
-			app.handleThrottling(1)
+			app.handleThrottling(1, resp.StatusCode)
 		} else {
 			app.Logger.Debug("Http Error URL: %s Error: %v\n", app.CurrentUrl, msg)
 		}

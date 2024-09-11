@@ -458,7 +458,7 @@ func (app *Crawler) GetUrlFileExtension(urlString string) string {
 	return extension
 }
 
-func (app *Crawler) handleThrottling(attempt, StatusCode int) {
+func (app *Crawler) HandleThrottling(attempt, StatusCode int) {
 	if attempt > 0 {
 		sleepDuration := time.Duration(app.engine.RetrySleepDuration) * time.Minute * time.Duration(attempt)
 		app.Logger.Debug("Sleeping for %s StatusCode: %d", sleepDuration, StatusCode)

@@ -1,6 +1,7 @@
 package ninjacrawler
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -61,23 +62,24 @@ func (app *Crawler) NavigateToApiURL(client *http.Client, urlString string, prox
 func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxyServer Proxy, attempt int) ([]byte, string, error) {
 
 	ContentType := ""
+	proxyIp := ""
 	urlString = app.GetQueryEscapeFullUrl(urlString)
 
 	httpTransport := &http.Transport{
-		//DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-		//	conn, err := net.Dial(network, addr)
-		//	if err == nil {
-		//		proxyIp = conn.RemoteAddr().String()
-		//		if app.engine.Provider == "zenrows" || strings.Contains(proxyServer.Server, "proxy.zenrows.com") {
-		//			app.Logger.Info("Proxy IP address: %s => %s", proxyIp, urlString)
-		//		}
-		//	}
-		//	return conn, err
-		//},
-		DialContext: (&net.Dialer{
-			Timeout:   client.Timeout, // Connection timeout
-			KeepAlive: client.Timeout,
-		}).DialContext,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			conn, err := net.Dial(network, addr)
+			if err == nil {
+				proxyIp = conn.RemoteAddr().String()
+				if app.engine.Provider == "zenrows" || strings.Contains(proxyServer.Server, "proxy.zenrows.com") {
+					app.Logger.Info("Proxy IP address: %s => %s", proxyIp, urlString)
+				}
+			}
+			return conn, err
+		},
+		//DialContext: (&net.Dialer{
+		//	Timeout:   client.Timeout, // Connection timeout
+		//	KeepAlive: client.Timeout,
+		//}).DialContext,
 		TLSHandshakeTimeout: 10 * time.Second, // TLS handshake timeout
 	}
 
@@ -146,7 +148,7 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 		if app.engine.RetrySleepDuration > 0 && (resp.StatusCode == 403) {
 			app.Logger.Error("failed: StatusCode:%v and Status:%v", resp.StatusCode, resp.Status)
 			app.Logger.Debug("Got Blocked at URL: %s Error: %v\n", app.CurrentUrl, msg)
-			app.handleThrottling(1, resp.StatusCode)
+			app.HandleThrottling(1, resp.StatusCode)
 		} else {
 			app.Logger.Debug("Http Error URL: %s Error: %v\n", app.CurrentUrl, msg)
 		}

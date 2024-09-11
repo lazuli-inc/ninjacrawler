@@ -43,7 +43,7 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 			}
 			if app.engine.RetrySleepDuration > 0 {
 				if urlCollection.StatusCode == 403 || (app.engine.Provider == "zenrows" && urlCollection.StatusCode >= 400 && urlCollection.StatusCode < 500) {
-					app.handleThrottling(urlCollection.Attempts, urlCollection.StatusCode)
+					app.HandleThrottling(urlCollection.Attempts, urlCollection.StatusCode)
 				}
 			}
 			preHandlerError := false

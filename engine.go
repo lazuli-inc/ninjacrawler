@@ -20,16 +20,20 @@ type Engine struct {
 	BlockedURLs             []string
 	BoostCrawling           bool
 	ProxyServers            []Proxy
+	ProxyStrategy           string
 	CookieConsent           *CookieAction
 	Timeout                 time.Duration
 	WaitForDynamicRendering bool
 	SleepAfter              int
 	MaxRetryAttempts        int
+	IgnoreRetryOnValidation *bool
 	Args                    []string
 	SleepDuration           int
 	RetrySleepDuration      int
+	ErrorCodes              []int
 	CrawlTimeout            int
 	WaitForSelector         *string
+	StoreHtml               *bool
 }
 type ProviderQueryOption struct {
 	JsRender             bool

@@ -37,7 +37,7 @@ func (app *Crawler) GetBrowserPage(pw *playwright.Playwright, browserType string
 	if len(app.engine.Args) > 0 {
 		browserTypeLaunchOptions.Args = app.engine.Args
 	}
-	if len(app.engine.ProxyServers) > 0 {
+	if len(app.engine.ProxyServers) > 0 && proxy.Server != "" {
 		// Set Proxy options
 		browserTypeLaunchOptions.Proxy = &playwright.Proxy{
 			Server:   proxy.Server,

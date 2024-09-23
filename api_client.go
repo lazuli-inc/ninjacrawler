@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 )
 
@@ -33,8 +34,10 @@ func (app *Crawler) submitProductData(productData *ProductDetail) error {
 	}
 	defer response.Body.Close()
 
+	// Check for non-200 status codes
 	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s: unexpected status code: %d", productData.Url, response.StatusCode)
+		bodyBytes, _ := io.ReadAll(response.Body)
+		return fmt.Errorf("API error for %s: status %d, body: %s", productData.Url, response.StatusCode, string(bodyBytes))
 	}
 
 	return nil

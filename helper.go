@@ -10,6 +10,7 @@ import (
 	"github.com/playwright-community/playwright-go"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -19,6 +20,7 @@ import (
 	"path/filepath"
 	"plugin"
 	"regexp"
+	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -94,7 +96,7 @@ func (app *Crawler) GetPageDom(page playwright.Page) (*goquery.Document, error) 
 	}
 	return document, nil
 }
-func (app *Crawler) writePageContentToFile(html, url, msg string) error {
+func (app *Crawler) writePageContentToFile(html, url, msg string, dir ...string) error {
 	if html == "" {
 		html = "No Page Content Found"
 	}
@@ -102,6 +104,35 @@ func (app *Crawler) writePageContentToFile(html, url, msg string) error {
 	html = fmt.Sprintf("<!-- Time: %v \n Page Url: %s -->\n%s", time.Now(), url, html)
 	filename := generateFilename(url)
 	directory := filepath.Join("storage", "logs", app.Name, "html")
+	if dir != nil && len(dir) > 0 {
+		directory = filepath.Join("storage", "logs", app.Name, "html", dir[0])
+	}
+	err := os.MkdirAll(directory, 0755)
+	if err != nil {
+		return err
+	}
+	filePath := filepath.Join(directory, filename)
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(html)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+func (app *Crawler) writeRawHtmlFile(html, url string) error {
+	if html == "" {
+		html = "No Page Content Found"
+	}
+	html = fmt.Sprintf("<!-- Time: %v \n Page Url: %s -->\n%s", time.Now(), url, html)
+	filename := generateRawFilename(url)
+	currentDate := time.Now().Format("2006-01-02")
+	directory := filepath.Join("storage", "raw_html", app.Name, currentDate)
 	err := os.MkdirAll(directory, 0755)
 	if err != nil {
 		return err
@@ -144,6 +175,30 @@ func generateFilename(rawURL string) string {
 	currentDate := time.Now().Format("2006-01-02")
 	return fmt.Sprintf("%s_%s_%s.html", currentDate, trimmedURL, hash)
 }
+
+// generateFilename generates a filename based on URL and current date
+func generateRawFilename(rawURL string) string {
+	// Replace characters not allowed in file names
+	invalidChars := []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|"}
+	for _, char := range invalidChars {
+		rawURL = strings.ReplaceAll(rawURL, char, "_")
+	}
+
+	// Maximum filename length is 255 characters, minus 5 characters for ".html"
+	maxFilenameLength := 255 - 5
+
+	// Trim the URL to fit within the maximum length
+	trimmedURL := rawURL
+	if len(trimmedURL) > maxFilenameLength {
+		trimmedURL = trimmedURL[:maxFilenameLength]
+	}
+
+	// Remove trailing underscore if it exists
+	trimmedURL = strings.TrimSuffix(trimmedURL, "_")
+
+	return fmt.Sprintf("%s.html", trimmedURL)
+}
+
 func generateCsvFileName(siteName string) string {
 	productDetailsFileName := fmt.Sprintf("storage/data/%s/%s.csv", siteName, time.Now().Format("2006_01_02"))
 
@@ -464,4 +519,82 @@ func (app *Crawler) HandleThrottling(attempt, StatusCode int) {
 		app.Logger.Debug("Sleeping for %s StatusCode: %d", sleepDuration, StatusCode)
 		time.Sleep(sleepDuration)
 	}
+}
+
+type comparableType interface {
+	int | string
+}
+
+// Generic contains function
+func inArray[T comparableType](arr []T, val T) bool {
+	if arr == nil || len(arr) == 0 {
+		return false
+	}
+	for _, v := range arr {
+		if v == val {
+			return true
+		}
+	}
+	return false
+}
+
+func (app *Crawler) SaveHtml(data interface{}, urlString string) error {
+	var htmlContent string
+	var err error
+
+	switch v := data.(type) {
+	case *playwright.Page:
+		htmlContent = app.getHtmlFromPage(*v)
+	case *goquery.Document:
+		htmlContent, err = v.Html() // Fetch HTML from goquery document
+		if err != nil {
+			return fmt.Errorf("Failed to get content from goquery document in SaveHtml %v", err.Error())
+		}
+	default:
+	}
+
+	err = app.writeRawHtmlFile(htmlContent, urlString)
+	if err != nil {
+		return fmt.Errorf("Failed to write html content to file in SaveHtml %v", err.Error())
+	}
+	return nil
+}
+func (app *Crawler) HandlePanic(r any) {
+	if r != nil {
+		app.Logger.Summary("Program crashed!: %v", r)
+		app.Logger.Debug("Panic caught: %v", r)
+		app.Logger.Debug("Stack trace: %v", string(debug.Stack()))
+		os.Exit(1)
+	}
+}
+
+func (app *Crawler) StopCrawler() error {
+	if !metadata.OnGCE() {
+		return nil
+	}
+
+	instanceName, err := metadata.InstanceName()
+	if err != nil {
+		log.Fatalf("Failed to get instanceName: %v", err)
+	}
+
+	managerUrl := fmt.Sprintf("%s/api/stop-crawler/%s", app.Config.GetString("SERVER_IP"), instanceName)
+
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", managerUrl, nil)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	response, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("connection Failed: %w", err)
+	}
+	defer response.Body.Close()
+
+	// Check for non-200 status codes
+	if response.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(response.Body)
+		return fmt.Errorf("api error status %d, body: %s", response.StatusCode, string(bodyBytes))
+	}
+	return nil
 }

@@ -6,19 +6,58 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/playwright-community/playwright-go"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
 
-func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorConfig, urlChan <-chan UrlCollection, resultChan chan<- interface{}, proxy Proxy, isLocalEnv bool, counter *int32) {
+var activeGoroutines int32 // Tracks how many goroutines are currently active
+var proxyMutex sync.Mutex  // Ensures exclusive access when rotating proxies
+
+func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorConfig, urlChan <-chan UrlCollection, resultChan chan<- interface{}, isLocalEnv bool, counter *int32, currentProxyIndex *int32) {
 	var page playwright.Page
 	var browser playwright.Browser
 	var err error
 	var doc *goquery.Document
 	var apiResponse map[string]interface{}
 
+	// Rotate proxy in ascending order (round-robin)
+	rotateProxy := func() Proxy {
+		proxyMutex.Lock()
+		defer proxyMutex.Unlock()
+
+		// Ensure the proxies rotate in ascending order, wrapping around to the first one after the last
+		newIndex := atomic.AddInt32(currentProxyIndex, 1)
+		if newIndex >= int32(len(app.engine.ProxyServers)) {
+			atomic.StoreInt32(currentProxyIndex, 0) // Reset to the first proxy
+			newIndex = 0
+		}
+
+		// Select the proxy based on the updated index
+		proxy := app.engine.ProxyServers[newIndex]
+		app.CurrentProxy = proxy
+
+		app.Logger.Debug("Rotating proxy to %s", proxy.Server)
+
+		// Initialize the browser with the new proxy if dynamic crawling is used
+		if *app.engine.IsDynamic {
+			browser, page, err = app.GetBrowserPage(app.pw, app.engine.BrowserType, proxy)
+			if err != nil {
+				app.Logger.Fatal(err.Error())
+			}
+		}
+
+		return proxy
+	}
+	currentProxy := Proxy{}
+	// Set the initial proxy (start from the first proxy)
+	if len(app.engine.ProxyServers) > 0 {
+		currentProxy = app.engine.ProxyServers[*currentProxyIndex]
+	}
+	app.CurrentProxy = currentProxy
+
 	if *app.engine.IsDynamic {
-		browser, page, err = app.GetBrowserPage(app.pw, app.engine.BrowserType, proxy)
+		browser, page, err = app.GetBrowserPage(app.pw, app.engine.BrowserType, currentProxy)
 		if err != nil {
 			app.Logger.Fatal(err.Error())
 		}
@@ -41,11 +80,16 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 			if !more {
 				return
 			}
-			if app.engine.RetrySleepDuration > 0 {
-				if urlCollection.StatusCode == 403 || (app.engine.Provider == "zenrows" && urlCollection.StatusCode >= 400 && urlCollection.StatusCode < 500) {
-					app.HandleThrottling(urlCollection.Attempts, urlCollection.StatusCode)
-				}
+			app.CurrentUrlCollection = urlCollection
+			if app.engine.RetrySleepDuration > 0 && inArray(app.engine.ErrorCodes, urlCollection.StatusCode) {
+				app.HandleThrottling(urlCollection.Attempts, urlCollection.StatusCode)
 			}
+			atomic.AddInt32(&activeGoroutines, 1) // Increment the active goroutine counter
+
+			// Rotate proxy on receiving specific error codes
+			//if app.engine.ProxyStrategy == ProxyStrategyRotation && inArray(app.engine.ErrorCodes, urlCollection.StatusCode) {
+			//	currentProxy = rotateProxy()
+			//}
 			preHandlerError := false
 			if processorConfig.Preference.PreHandlers != nil { // Execute pre handlers
 				for _, preHandler := range processorConfig.Preference.PreHandlers {
@@ -66,8 +110,8 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 				crawlableUrl = urlCollection.CurrentPageUrl
 			}
 
-			if proxy.Server != "" {
-				app.Logger.Info("Crawling :%s: %s using Proxy %s", processorConfig.OriginCollection, crawlableUrl, proxy.Server)
+			if currentProxy.Server != "" {
+				app.Logger.Info("Crawling :%s: %s using Proxy %s", processorConfig.OriginCollection, crawlableUrl, currentProxy.Server)
 			} else {
 				app.Logger.Info("Crawling :%s: %s", processorConfig.OriginCollection, crawlableUrl)
 			}
@@ -76,16 +120,25 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 			} else {
 				switch processorConfig.Processor.(type) {
 				case ProductDetailApi:
-					apiResponse, err = app.NavigateToApiURL(app.httpClient, crawlableUrl, proxy)
+					apiResponse, err = app.NavigateToApiURL(app.httpClient, crawlableUrl, currentProxy)
 				default:
-					doc, err = app.NavigateToStaticURL(app.httpClient, crawlableUrl, proxy)
+					doc, err = app.NavigateToStaticURL(app.httpClient, crawlableUrl, currentProxy)
 				}
 			}
 
 			if err != nil {
-				if strings.Contains(err.Error(), "StatusCode:40") {
+				if strings.Contains(err.Error(), "StatusCode:404") {
 					if markMaxErr := app.MarkAsMaxErrorAttempt(urlCollection.Url, processorConfig.OriginCollection, err.Error()); markMaxErr != nil {
 						app.Logger.Error("markMaxErr: ", markMaxErr.Error())
+						return
+					}
+				} else if strings.Contains(err.Error(), "isRetryable") && atomic.AddInt32(&activeGoroutines, -1) == 0 {
+					if app.engine.ProxyStrategy == ProxyStrategyRotation {
+						// Rotate the proxy on receiving a 403
+						currentProxy = rotateProxy()
+					}
+					if markErr := app.MarkAsError(urlCollection.Url, processorConfig.OriginCollection, err.Error()); markErr != nil {
+						app.Logger.Error("markErr: ", markErr.Error())
 						return
 					}
 				} else {
@@ -96,6 +149,12 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 				}
 				app.Logger.Error("Error crawling %s: %v", urlCollection.Url, err)
 				continue
+			}
+
+			if *app.engine.StoreHtml {
+				if StoreHtmlErr := app.SaveHtml(doc, urlCollection.Url); StoreHtmlErr != nil {
+					app.Logger.Error(StoreHtmlErr.Error())
+				}
 			}
 
 			crawlerCtx := CrawlerContext{
@@ -203,7 +262,7 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 					}
 
 					for _, collection := range collections {
-						res := crawlerCtx.handleProductDetail(collection)
+						res := crawlerCtx.scrapData(collection)
 						result := CrawlResult{
 							Results:       res,
 							UrlCollection: urlCollection,
@@ -234,7 +293,7 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 					}
 				}
 			case ProductDetailSelector:
-				results = crawlerCtx.handleProductDetail(processorConfig.Processor)
+				results = crawlerCtx.scrapData(processorConfig.Processor)
 			case ProductDetailApi:
 				results = crawlerCtx.handleProductDetailApi(processorConfig.Processor)
 
@@ -263,7 +322,12 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 				//app.Logger.Warn("Dev Crawl limit %d reached!", atomic.LoadInt32(counter))
 				return
 			}
-
+			// Signal that this goroutine is done
+			if atomic.AddInt32(&activeGoroutines, -1) == 0 {
+				// Rotate proxy only after all goroutines have finished processing
+				//currentProxy = rotateProxy()
+				//app.Logger.Info("Rotate proxy only after all goroutines have finished processing")
+			}
 			operationCount++                               // Increment the operation count
 			if operationCount%app.engine.SleepAfter == 0 { // Apply sleep after a certain number of operations
 				app.Logger.Info("Sleeping %d seconds after %d operations", app.engine.SleepDuration, app.engine.SleepAfter)

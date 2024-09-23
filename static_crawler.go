@@ -1,13 +1,11 @@
 package ninjacrawler
 
 import (
-	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html/charset"
-	"golang.org/x/net/proxy"
 	"io"
 	"log"
 	"net"
@@ -60,27 +58,27 @@ func (app *Crawler) NavigateToApiURL(client *http.Client, urlString string, prox
 }
 
 func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxyServer Proxy, attempt int) ([]byte, string, error) {
-
+	app.CurrentUrl = urlString
 	ContentType := ""
-	proxyIp := ""
+	//proxyIp := ""
 	urlString = app.GetQueryEscapeFullUrl(urlString)
 
 	httpTransport := &http.Transport{
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			conn, err := net.Dial(network, addr)
-			if err == nil {
-				proxyIp = conn.RemoteAddr().String()
-				if app.engine.Provider == "zenrows" || strings.Contains(proxyServer.Server, "proxy.zenrows.com") {
-					app.Logger.Info("Proxy IP address: %s => %s", proxyIp, urlString)
-				}
-			}
-			return conn, err
-		},
-		//DialContext: (&net.Dialer{
-		//	Timeout:   client.Timeout, // Connection timeout
-		//	KeepAlive: client.Timeout,
-		//}).DialContext,
-		TLSHandshakeTimeout: 10 * time.Second, // TLS handshake timeout
+		//DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+		//	conn, err := net.Dial(network, addr)
+		//	if err == nil {
+		//		proxyIp = conn.RemoteAddr().String()
+		//		if app.engine.Provider == "zenrows" || strings.Contains(proxyServer.Server, "proxy.zenrows.com") {
+		//			app.Logger.Info("Proxy IP address: %s => %s", proxyIp, urlString)
+		//		}
+		//	}
+		//	return conn, err
+		//},
+		DialContext: (&net.Dialer{
+			Timeout:   60 * time.Second, // Connection timeout
+			KeepAlive: 60 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout: 60 * time.Second, // TLS handshake timeout
 	}
 
 	if app.engine.Provider == "zenrows" {
@@ -90,21 +88,18 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 		urlString = fmt.Sprintf("https://api.zenrows.com/v1/?apikey=%s&url=%s&%s", zenrowsApiKey, urlString, queryString)
 
 	} else {
-		if len(app.engine.ProxyServers) > 0 {
+		if len(app.engine.ProxyServers) > 0 && proxyServer.Server != "" {
 			proxyURL, err := url.Parse(proxyServer.Server)
 			if err != nil {
 				log.Fatalf("Failed to parse proxy URL: %v", err)
 			}
+			// Set proxy credentials if available
 			if proxyServer.Username != "" && proxyServer.Password != "" {
 				proxyURL.User = url.UserPassword(proxyServer.Username, proxyServer.Password)
-				dialer, err := proxy.FromURL(proxyURL, proxy.Direct)
-				if err != nil {
-					log.Fatalf("Failed to obtain proxy dialer: %v", err)
-				}
-				httpTransport.Dial = dialer.Dial
-			} else {
-				httpTransport.Proxy = http.ProxyURL(proxyURL)
 			}
+
+			// Set the proxy in the transport
+			httpTransport.Proxy = http.ProxyURL(proxyURL)
 
 			if proxyURL.Scheme == "http" || proxyURL.Scheme == "https" {
 				httpTransport.TLSClientConfig = &tls.Config{
@@ -125,10 +120,20 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 
 	resp, err := client.Do(req)
 	if err != nil {
+		errMsg := fmt.Sprintf("Failed to send request: %v", err)
 		if strings.Contains(err.Error(), "Client.Timeout") {
 			_ = app.updateStatusCode(urlString, 408)
 		}
-		return nil, ContentType, fmt.Errorf("Failed to send request: %v", err)
+		if strings.Contains(err.Error(), "Too Many Requests") {
+			if inArray(app.engine.ErrorCodes, 429) {
+				errMsg = fmt.Sprintf("isRetryable : Too Many Requests: %v", err)
+			}
+			_ = app.updateStatusCode(urlString, 429)
+			if app.engine.RetrySleepDuration > 0 {
+				//app.HandleThrottling(1, 429)
+			}
+		}
+		return nil, ContentType, fmt.Errorf(errMsg)
 	}
 	defer resp.Body.Close()
 
@@ -138,17 +143,25 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 	}
 	ContentType = resp.Header.Get("Content-Type")
 	_ = app.updateStatusCode(urlString, resp.StatusCode)
-	app.CurrentUrl = resp.Request.URL.String()
+	// Check if a redirect occurred
+	if req.URL.String() != resp.Request.URL.String() {
+		resUrl, _ := url.Parse(resp.Request.URL.String())
+		if resUrl.Host != req.Host {
+			app.CurrentUrl = resp.Request.URL.String()
+			//app.Logger.Warn("===Redirect detected: %s -> %s === Request URL: %s Response URL: %s\n", req.Host, resUrl.Host, req.URL.String(), resp.Request.URL.String())
+		}
+	}
 	if resp.StatusCode != http.StatusOK {
 		msg := fmt.Sprintf("failed to fetch page: StatusCode:%v and Status:%v", resp.StatusCode, resp.Status)
 		if resp.StatusCode == 404 {
 			_ = app.MarkAsMaxErrorAttempt(urlString, app.CurrentCollection, "Url Not Found")
 			return nil, ContentType, fmt.Errorf("Url Not Found StatusCode: %v", resp.StatusCode)
 		}
-		if app.engine.RetrySleepDuration > 0 && (resp.StatusCode == 403) {
-			app.Logger.Error("failed: StatusCode:%v and Status:%v", resp.StatusCode, resp.Status)
+		if inArray(app.engine.ErrorCodes, resp.StatusCode) {
+			msg = fmt.Sprintf("isRetryable: StatusCode:%v and Status:%v", resp.StatusCode, resp.Status)
+			app.Logger.Error(msg)
 			app.Logger.Debug("Got Blocked at URL: %s Error: %v\n", app.CurrentUrl, msg)
-			app.HandleThrottling(1, resp.StatusCode)
+			//app.HandleThrottling(1, resp.StatusCode)
 		} else {
 			app.Logger.Debug("Http Error URL: %s Error: %v\n", app.CurrentUrl, msg)
 		}

@@ -1,5 +1,10 @@
 package ninjacrawler
 
+var (
+	ProxyStrategyConcurrency = "concurrency"
+	ProxyStrategyRotation    = "rotation"
+)
+
 // String is a helper routine that allocates a new string value
 // to store v and returns a pointer to it.
 func String(v string) *string {

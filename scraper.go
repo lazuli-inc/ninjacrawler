@@ -45,7 +45,7 @@ func parseKeys(path string) []string {
 	return keys
 }
 
-func (ctx *CrawlerContext) handleProductDetail(processor interface{}) *ProductDetail {
+func (ctx *CrawlerContext) scrapData(processor interface{}) *ProductDetail {
 	app := ctx.App
 	document := ctx.Document
 	productDetail := &ProductDetail{}
@@ -58,6 +58,9 @@ func (ctx *CrawlerContext) handleProductDetail(processor interface{}) *ProductDe
 
 		switch v := fieldValue.Interface().(type) {
 		case string:
+			reflect.ValueOf(productDetail).Elem().FieldByName(fieldName).SetString(v)
+		case []string:
+			reflect.ValueOf(productDetail).Elem().FieldByName(fieldName).Set(reflect.ValueOf(v))
 		case func(CrawlerContext) []AttributeItem:
 			result := fieldValue.Interface().(func(CrawlerContext) []AttributeItem)(*ctx)
 			reflect.ValueOf(productDetail).Elem().FieldByName(fieldName).Set(reflect.ValueOf(result))

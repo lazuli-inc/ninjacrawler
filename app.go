@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -16,6 +15,7 @@ var startTime time.Time
 
 const (
 	baseCollection = "sites"
+	dbFilterLimit  = 200
 )
 
 type Crawler struct {
@@ -35,6 +35,7 @@ type Crawler struct {
 	userAgent             string
 	CurrentProxy          Proxy
 	CurrentCollection     string
+	CurrentUrlCollection  UrlCollection
 	CurrentUrl            string
 }
 
@@ -69,9 +70,7 @@ func NewCrawler(name, url string, engines ...Engine) *Crawler {
 func (app *Crawler) Start() {
 	defer func() {
 		if r := recover(); r != nil {
-			app.Logger.Summary("Program crashed!: %v", r)
-			app.Logger.Debug("Panic caught: %v", r)
-			app.Logger.Debug("Stack trace:", string(debug.Stack()))
+			app.HandlePanic(r)
 		}
 	}()
 	startTime = time.Now()
@@ -105,9 +104,7 @@ func (app *Crawler) toggleClient() {
 func (app *Crawler) Stop() {
 	defer func() {
 		if r := recover(); r != nil {
-			app.Logger.Summary("Program crashed!: %v", r)
-			app.Logger.Debug("Panic caught: %v", r)
-			app.Logger.Debug("Stack trace:", string(debug.Stack()))
+			app.HandlePanic(r)
 		}
 	}()
 	if app.pw != nil {
@@ -118,12 +115,22 @@ func (app *Crawler) Stop() {
 	}
 	// upload logs
 	uploadLogs := app.Config.GetBool("UPLOAD_LOGS")
-	if !app.isLocalEnv || uploadLogs {
+	if uploadLogs {
 		app.UploadLogs()
+	}
+
+	if *app.engine.StoreHtml {
+		app.UploadRawHtml()
 	}
 	duration := time.Since(startTime)
 	app.Logger.Summary("Crawler completed!")
 	app.Logger.Summary("Crawling duration %v", duration)
+
+	// stop the crawler after successful crawl
+	err := app.StopCrawler()
+	if err != nil {
+		app.Logger.Debug("Crawler Stop Failed")
+	}
 }
 
 func (app *Crawler) UploadLogs() {
@@ -139,6 +146,31 @@ func (app *Crawler) UploadLogs() {
 		if !info.IsDir() {
 			relativePath := strings.TrimPrefix(path, storagePath+"/")
 			uploadToBucket(app, path, fmt.Sprintf("logs/%s", relativePath))
+			total++
+		}
+
+		return nil
+	})
+
+	app.Logger.Info("Total %d File uploaded to bucket successfully", total)
+
+	if err != nil {
+		app.Logger.Error("Error walking through storage directory: %v", err)
+	}
+}
+func (app *Crawler) UploadRawHtml() {
+	app.Logger.Info("Uploading raw html...")
+	total := 0
+	storagePath := fmt.Sprintf("storage/raw_html/%s", app.Name)
+	err := filepath.Walk(storagePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			app.Logger.Error("Error accessing path %s: %v", path, err)
+			return err
+		}
+
+		if !info.IsDir() {
+			relativePath := strings.TrimPrefix(path, storagePath+"/")
+			uploadToBucket(app, path, fmt.Sprintf("raw_html/%s", relativePath))
 			total++
 		}
 
@@ -227,6 +259,12 @@ func getDefaultEngine() Engine {
 		RetrySleepDuration: 0, //30min
 		CrawlTimeout:       999999,
 		WaitForSelector:    nil,
+		ProxyStrategy:      ProxyStrategyConcurrency,
+		ErrorCodes: []int{
+			403,
+		},
+		IgnoreRetryOnValidation: Bool(false),
+		StoreHtml:               Bool(false),
 	}
 }
 
@@ -376,5 +414,18 @@ func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	}
 	if eng.WaitForSelector != nil {
 		defaultEngine.WaitForSelector = eng.WaitForSelector
+	}
+	if eng.ProxyStrategy != "" {
+		defaultEngine.ProxyStrategy = eng.ProxyStrategy
+	}
+	if eng.ErrorCodes != nil && len(eng.ErrorCodes) > 0 {
+		defaultEngine.ErrorCodes = eng.ErrorCodes
+
+	}
+	if eng.IgnoreRetryOnValidation != nil {
+		defaultEngine.IgnoreRetryOnValidation = eng.IgnoreRetryOnValidation
+	}
+	if eng.StoreHtml != nil {
+		defaultEngine.StoreHtml = eng.StoreHtml
 	}
 }

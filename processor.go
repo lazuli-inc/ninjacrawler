@@ -69,6 +69,8 @@ func (app *Crawler) processUrlsWithProxies(urls []UrlCollection, config Processo
 			if len(proxies) > 0 && app.engine.ProxyStrategy == ProxyStrategyConcurrency {
 				// Use a new proxy for each request
 				proxy = proxies[totalReqCount%len(proxies)]
+			} else if len(proxies) > 0 && app.engine.ProxyStrategy == ProxyStrategyRotation {
+				proxy = proxies[0]
 			}
 
 			totalReqCount++
@@ -130,6 +132,7 @@ func (app *Crawler) processUrlsWithProxies(urls []UrlCollection, config Processo
 							}
 						}
 						app.Logger.Error("Error crawling %s: %v", urlCollection.Url, err)
+						return
 					}
 					app.extract(config, *ctx)
 				}

@@ -13,13 +13,19 @@ func (app *Crawler) Crawl(configs []ProcessorConfig) {
 		app.overrideEngineDefaults(app.engine, &config.Engine)
 		app.toggleClient()
 		total := int32(0)
+		crawlLimit := 0
+		if app.isLocalEnv && app.engine.DevCrawlLimit > 0 {
+			crawlLimit = app.engine.DevCrawlLimit
+		} else if !app.isLocalEnv && app.engine.StgCrawlLimit > 0 {
+			crawlLimit = app.engine.StgCrawlLimit
+		}
 		for {
 			productList := app.getUrlCollections(config.OriginCollection)
 			if len(productList) == 0 {
 				break
 			}
 
-			shouldContinue := app.processUrlsWithProxies(productList, config, &total)
+			shouldContinue := app.processUrlsWithProxies(productList, config, &total, crawlLimit)
 
 			dataCount := total
 			app.Logger.Summary("[Total (%d) :%s: found from :%s:]", dataCount, config.Entity, config.OriginCollection)
@@ -28,7 +34,7 @@ func (app *Crawler) Crawl(configs []ProcessorConfig) {
 				app.Logger.Summary("Error count: %d", errCount)
 			}
 			if !shouldContinue {
-				app.Logger.Warn("Dev crawl limit of %d reached, stopping...", app.engine.DevCrawlLimit)
+				app.Logger.Debug("Crawl limit of %d reached, stopping...", crawlLimit)
 				break
 			}
 		}
@@ -43,7 +49,7 @@ func (app *Crawler) Crawl(configs []ProcessorConfig) {
 	}
 }
 
-func (app *Crawler) processUrlsWithProxies(urls []UrlCollection, config ProcessorConfig, total *int32) bool {
+func (app *Crawler) processUrlsWithProxies(urls []UrlCollection, config ProcessorConfig, total *int32, crawlLimit int) bool {
 	var wg sync.WaitGroup
 	proxies := app.engine.ProxyServers
 	shouldContinue := true
@@ -59,7 +65,7 @@ func (app *Crawler) processUrlsWithProxies(urls []UrlCollection, config Processo
 		}
 		for i := batchIndex; i < batchIndex+app.engine.ConcurrentLimit && i < len(urls); i++ {
 			// Use atomic load to check total in a thread-safe way
-			if app.engine.DevCrawlLimit > 0 && atomic.LoadInt32(total) >= int32(app.engine.DevCrawlLimit) {
+			if crawlLimit > 0 && atomic.LoadInt32(total) >= int32(crawlLimit) {
 				shouldContinue = false
 				break
 			}
@@ -85,7 +91,7 @@ func (app *Crawler) processUrlsWithProxies(urls []UrlCollection, config Processo
 					wg.Done()
 				}()
 				// Atomically check and increment the total count
-				if app.engine.DevCrawlLimit > 0 && atomic.AddInt32(total, 1) > int32(app.engine.DevCrawlLimit) {
+				if crawlLimit > 0 && atomic.AddInt32(total, 1) > int32(crawlLimit) {
 					atomic.AddInt32(total, -1)
 					shouldContinue = false
 					return
@@ -119,7 +125,7 @@ func (app *Crawler) processUrlsWithProxies(urls []UrlCollection, config Processo
 							if len(proxies) > 0 && app.engine.ProxyStrategy == ProxyStrategyRotation {
 								proxyIndex := (batchCount) % len(proxies)
 								proxy = proxies[proxyIndex]
-								app.Logger.Warn("Rotating proxy to %s", proxy.Server)
+								app.Logger.Summary("Rotating proxy to %s", proxy.Server)
 							}
 							if markErr := app.MarkAsError(urlCollection.Url, config.OriginCollection, err.Error()); markErr != nil {
 								app.Logger.Error("markErr: ", markErr.Error())

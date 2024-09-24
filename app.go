@@ -232,7 +232,8 @@ func getDefaultEngine() Engine {
 		ConcurrentLimit:         1,
 		IsDynamic:               Bool(false),
 		WaitForDynamicRendering: false,
-		DevCrawlLimit:           100,
+		DevCrawlLimit:           0,
+		StgCrawlLimit:           0,
 		BlockResources:          false,
 		JavaScriptEnabled:       true,
 		BlockedURLs: []string{
@@ -286,6 +287,9 @@ func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	}
 	if eng.DevCrawlLimit > 0 {
 		defaultEngine.DevCrawlLimit = eng.DevCrawlLimit
+	}
+	if eng.StgCrawlLimit > 0 {
+		defaultEngine.StgCrawlLimit = eng.StgCrawlLimit
 	}
 	if eng.BlockResources {
 		defaultEngine.BlockResources = eng.BlockResources

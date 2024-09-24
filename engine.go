@@ -15,6 +15,7 @@ type Engine struct {
 	ConcurrentLimit         int
 	IsDynamic               *bool
 	DevCrawlLimit           int
+	StgCrawlLimit           int
 	BlockResources          bool
 	JavaScriptEnabled       bool
 	BlockedURLs             []string

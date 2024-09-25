@@ -160,7 +160,7 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 			}
 
 			if *app.engine.StoreHtml {
-				if StoreHtmlErr := app.SaveHtml(crawlerCtx, urlCollection.Url); StoreHtmlErr != nil {
+				if StoreHtmlErr := app.SaveHtml(doc, urlCollection.Url); StoreHtmlErr != nil {
 					app.Logger.Error(StoreHtmlErr.Error())
 				}
 			}

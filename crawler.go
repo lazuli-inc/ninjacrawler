@@ -151,18 +151,18 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 				continue
 			}
 
-			if *app.engine.StoreHtml {
-				if StoreHtmlErr := app.SaveHtml(doc, urlCollection.Url); StoreHtmlErr != nil {
-					app.Logger.Error(StoreHtmlErr.Error())
-				}
-			}
-
 			crawlerCtx := CrawlerContext{
 				App:           app,
 				Document:      doc,
 				UrlCollection: urlCollection,
 				Page:          page,
 				ApiResponse:   apiResponse,
+			}
+
+			if *app.engine.StoreHtml {
+				if StoreHtmlErr := app.SaveHtml(crawlerCtx, urlCollection.Url); StoreHtmlErr != nil {
+					app.Logger.Error(StoreHtmlErr.Error())
+				}
 			}
 
 			var results interface{}

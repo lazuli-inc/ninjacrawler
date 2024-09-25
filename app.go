@@ -37,6 +37,7 @@ type Crawler struct {
 	CurrentCollection     string
 	CurrentUrlCollection  UrlCollection
 	CurrentUrl            string
+	lastWorkingProxyIndex int32
 }
 
 func NewCrawler(name, url string, engines ...Engine) *Crawler {
@@ -64,6 +65,7 @@ func NewCrawler(name, url string, engines ...Engine) *Crawler {
 	crawler.isLocalEnv = config.GetString("APP_ENV") == "local"
 	crawler.userAgent = config.GetString("USER_AGENT")
 	crawler.preference = &defaultPreference
+	crawler.lastWorkingProxyIndex = int32(0)
 	return crawler
 }
 
@@ -266,6 +268,7 @@ func getDefaultEngine() Engine {
 		},
 		IgnoreRetryOnValidation: Bool(false),
 		StoreHtml:               Bool(false),
+		SendHtmlToBigquery:      Bool(false),
 	}
 }
 
@@ -431,5 +434,8 @@ func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	}
 	if eng.StoreHtml != nil {
 		defaultEngine.StoreHtml = eng.StoreHtml
+	}
+	if eng.SendHtmlToBigquery != nil {
+		defaultEngine.SendHtmlToBigquery = eng.SendHtmlToBigquery
 	}
 }

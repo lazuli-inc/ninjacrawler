@@ -35,6 +35,7 @@ type Engine struct {
 	CrawlTimeout            int
 	WaitForSelector         *string
 	StoreHtml               *bool
+	SendHtmlToBigquery      *bool
 }
 type ProviderQueryOption struct {
 	JsRender             bool

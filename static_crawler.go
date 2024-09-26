@@ -45,6 +45,12 @@ func (app *Crawler) NavigateToStaticURL(client *http.Client, urlString string, p
 			app.Logger.Fatal("SendHtmlToBigquery Error: %s", sendErr.Error())
 		}
 	}
+
+	if *app.engine.StoreHtml {
+		if StoreHtmlErr := app.SaveHtml(document, urlString); StoreHtmlErr != nil {
+			app.Logger.Error(StoreHtmlErr.Error())
+		}
+	}
 	return document, nil
 }
 

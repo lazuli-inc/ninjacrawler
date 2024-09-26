@@ -178,5 +178,10 @@ func (app *Crawler) NavigateToURL(page playwright.Page, url string) (*goquery.Do
 			app.Logger.Fatal("SendHtmlToBigquery Error: %s", sendErr.Error())
 		}
 	}
+	if *app.engine.StoreHtml {
+		if StoreHtmlErr := app.SaveHtml(document, url); StoreHtmlErr != nil {
+			app.Logger.Error(StoreHtmlErr.Error())
+		}
+	}
 	return document, err
 }

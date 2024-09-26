@@ -115,10 +115,13 @@ func (app *Crawler) processUrlsWithProxies(urls []UrlCollection, config Processo
 	return shouldContinue
 }
 func (app *Crawler) crawlWithProxies(urlCollection UrlCollection, config ProcessorConfig, proxies []Proxy, proxyIndex, batchCount, attempt int) {
-
-	// Pre-handler logic
+	proxy := Proxy{}
+	if len(proxies) > 0 {
+		proxy = proxies[proxyIndex]
+	}
 	app.CurrentCollection = config.OriginCollection
 	app.CurrentUrlCollection = urlCollection
+	app.CurrentProxy = proxy
 	preHandlerError := false
 	if config.Preference.PreHandlers != nil {
 		for _, preHandler := range config.Preference.PreHandlers {
@@ -130,7 +133,7 @@ func (app *Crawler) crawlWithProxies(urlCollection UrlCollection, config Process
 	}
 	if !preHandlerError {
 		// Crawl worker execution
-		ctx, err := app.handleCrawlWorker(config, proxies[proxyIndex], urlCollection)
+		ctx, err := app.handleCrawlWorker(config, proxy, urlCollection)
 		if err != nil {
 			if strings.Contains(err.Error(), "StatusCode:404") {
 				// Mark as max error and stop retrying
@@ -142,7 +145,7 @@ func (app *Crawler) crawlWithProxies(urlCollection UrlCollection, config Process
 				// Rotate proxy if it's a retryable error
 				if len(proxies) > 0 && app.engine.ProxyStrategy == ProxyStrategyRotation {
 					nextProxyIndex := (proxyIndex + 1) % len(proxies)
-					app.Logger.Summary("Error with proxy %s: %v. Retrying with a different proxy: %s", proxies[proxyIndex].Server, err.Error(), proxies[nextProxyIndex].Server)
+					app.Logger.Summary("Error with proxy %s: %v. Retrying with a different proxy: %s", proxy.Server, err.Error(), proxies[nextProxyIndex].Server)
 
 					// Check if we have exhausted all proxies
 					if attempt >= len(proxies) {
@@ -154,6 +157,9 @@ func (app *Crawler) crawlWithProxies(urlCollection UrlCollection, config Process
 						app.crawlWithProxies(urlCollection, config, proxies, nextProxyIndex, batchCount, attempt+1) // Retry with the next proxy
 					}
 					return
+				}
+				if app.engine.RetrySleepDuration > 0 {
+					app.HandleThrottling(1, urlCollection.StatusCode)
 				}
 				if markErr := app.MarkAsError(urlCollection.Url, config.OriginCollection, err.Error()); markErr != nil {
 					app.Logger.Error("markErr: ", markErr.Error())

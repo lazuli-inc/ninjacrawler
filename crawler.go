@@ -164,7 +164,10 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 					app.Logger.Error(StoreHtmlErr.Error())
 				}
 			}
-
+			if processorConfig.StateHandler != nil {
+				data := processorConfig.StateHandler(crawlerCtx)
+				crawlerCtx.State = data
+			}
 			var results interface{}
 			switch v := processorConfig.Processor.(type) {
 			case func(CrawlerContext) []UrlCollection:

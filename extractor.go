@@ -3,6 +3,10 @@ package ninjacrawler
 import "fmt"
 
 func (app *Crawler) extract(processorConfig ProcessorConfig, ctx CrawlerContext) {
+	if processorConfig.StateHandler != nil {
+		data := processorConfig.StateHandler(ctx)
+		ctx.State = data
+	}
 	switch v := processorConfig.Processor.(type) {
 	case func(CrawlerContext) []UrlCollection:
 		var collections []UrlCollection

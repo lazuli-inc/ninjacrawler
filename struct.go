@@ -14,6 +14,7 @@ type ProcessorConfig struct {
 	Preference       Preference    `json:"preference"`
 	Engine           Engine        `json:"engine"`
 	ProcessorType    ProcessorType `json:"processor_type"`
+	StateHandler     func(ctx CrawlerContext) Map
 }
 type ProcessorType struct {
 	Handle          *Handle         `json:"handle"`
@@ -68,6 +69,7 @@ type CrawlerContext struct {
 	UrlCollection UrlCollection
 	Page          playwright.Page
 	ApiResponse   Map
+	State         Map
 }
 
 // Struct to hold both results and the UrlCollection

@@ -74,7 +74,7 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 	app.CurrentUrl = urlString
 	ContentType := ""
 	//proxyIp := ""
-	urlString = app.GetQueryEscapeFullUrl(urlString)
+	originalUrl := urlString
 
 	httpTransport := &http.Transport{
 		//DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -96,6 +96,7 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 
 	if app.engine.Provider == "zenrows" {
 
+		urlString = app.GetQueryEscapeFullUrl(urlString)
 		zenrowsApiKey := app.Config.EnvString("ZENROWS_API_KEY")
 		queryString := app.BuildQueryString()
 		urlString = fmt.Sprintf("https://api.zenrows.com/v1/?apikey=%s&url=%s&%s", zenrowsApiKey, urlString, queryString)
@@ -135,13 +136,13 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 	if err != nil {
 		errMsg := fmt.Sprintf("Failed to send request: %v", err)
 		if strings.Contains(err.Error(), "Client.Timeout") {
-			_ = app.updateStatusCode(urlString, 408)
+			_ = app.updateStatusCode(originalUrl, 408)
 		}
 		if strings.Contains(err.Error(), "Too Many Requests") {
 			if inArray(app.engine.ErrorCodes, 429) {
 				errMsg = fmt.Sprintf("isRetryable : Too Many Requests: %v", err)
 			}
-			_ = app.updateStatusCode(urlString, 429)
+			_ = app.updateStatusCode(originalUrl, 429)
 			if app.engine.RetrySleepDuration > 0 {
 				//app.HandleThrottling(1, 429)
 			}
@@ -155,7 +156,7 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 		return nil, ContentType, fmt.Errorf("failed to read response body: %w", err)
 	}
 	ContentType = resp.Header.Get("Content-Type")
-	_ = app.updateStatusCode(urlString, resp.StatusCode)
+	_ = app.updateStatusCode(originalUrl, resp.StatusCode)
 	// Check if a redirect occurred
 	if req.URL.String() != resp.Request.URL.String() {
 		resUrl, _ := url.Parse(resp.Request.URL.String())
@@ -167,7 +168,7 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 	if resp.StatusCode != http.StatusOK {
 		msg := fmt.Sprintf("failed to fetch page: StatusCode:%v and Status:%v", resp.StatusCode, resp.Status)
 		if resp.StatusCode == 404 {
-			_ = app.MarkAsMaxErrorAttempt(urlString, app.CurrentCollection, "Url Not Found")
+			_ = app.MarkAsMaxErrorAttempt(originalUrl, app.CurrentCollection, "Url Not Found")
 			return nil, ContentType, fmt.Errorf("Url Not Found StatusCode: %v", resp.StatusCode)
 		}
 		if inArray(app.engine.ErrorCodes, resp.StatusCode) {
@@ -178,7 +179,7 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 		} else {
 			app.Logger.Debug("Http Error URL: %s Error: %v\n", app.CurrentUrl, msg)
 		}
-		app.Logger.Html(string(body), urlString, msg)
+		app.Logger.Html(string(body), originalUrl, msg)
 		var jsonResponse map[string]interface{}
 		err = json.Unmarshal(body, &jsonResponse)
 

@@ -137,15 +137,14 @@ func (app *Crawler) HandleCookieConsent(page playwright.Page) error {
 // It waits until the page is fully loaded, handles cookie consent, and returns a goquery document representing the DOM.
 // If navigation or handling consent fails, it logs the page content to a file and returns an error.
 func (app *Crawler) NavigateToURL(page playwright.Page, url string) (*goquery.Document, error) {
-	waitUntil := playwright.WaitUntilStateDomcontentloaded
+	pageGotoOptions := playwright.PageGotoOptions{
+		Timeout: playwright.Float(float64(app.engine.Timeout)),
+	}
 	if app.engine.WaitForDynamicRendering && app.engine.WaitForSelector == nil {
-		waitUntil = playwright.WaitUntilStateNetworkidle
+		pageGotoOptions.WaitUntil = playwright.WaitUntilStateNetworkidle
 	}
 
-	res, err := page.Goto(url, playwright.PageGotoOptions{
-		WaitUntil: waitUntil,
-		Timeout:   playwright.Float(float64(app.engine.Timeout)),
-	})
+	res, err := page.Goto(url, pageGotoOptions)
 	if err != nil {
 		app.Logger.Html(app.getHtmlFromPage(page), url, err.Error())
 		return nil, err
@@ -156,7 +155,7 @@ func (app *Crawler) NavigateToURL(page playwright.Page, url string) (*goquery.Do
 	}
 	if app.engine.WaitForSelector != nil {
 		_, err = page.WaitForSelector(*app.engine.WaitForSelector, playwright.PageWaitForSelectorOptions{
-			State:   playwright.WaitForSelectorStateVisible,
+			State:   playwright.WaitForSelectorStateAttached,
 			Timeout: playwright.Float(float64(app.engine.Timeout)),
 		})
 		if err != nil {

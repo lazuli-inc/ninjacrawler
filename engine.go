@@ -8,6 +8,7 @@ import (
 )
 
 type Engine struct {
+	Adapter                 *string
 	ForceInstallPlaywright  bool
 	Provider                string // http,playwright,zenrows
 	ProviderOption          ProviderQueryOption

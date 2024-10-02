@@ -89,6 +89,75 @@ func (app *Crawler) GetBrowserPage(pw *playwright.Playwright, browserType string
 
 	return browser, page, nil
 }
+func (app *Crawler) GetBrowser(pw *playwright.Playwright, browserType string, proxy Proxy) (playwright.BrowserContext, error) {
+	var browser playwright.Browser
+	var err error
+
+	var browserTypeLaunchOptions playwright.BrowserTypeLaunchOptions
+	browserTypeLaunchOptions.Headless = playwright.Bool(!app.isLocalEnv)
+	browserTypeLaunchOptions.Devtools = playwright.Bool(app.isLocalEnv)
+	// Set additional launch arguments
+	if len(app.engine.Args) > 0 {
+		browserTypeLaunchOptions.Args = app.engine.Args
+	}
+	if len(app.engine.ProxyServers) > 0 && proxy.Server != "" {
+		// Set Proxy options
+		browserTypeLaunchOptions.Proxy = &playwright.Proxy{
+			Server:   proxy.Server,
+			Username: playwright.String(proxy.Username),
+			Password: playwright.String(proxy.Password),
+		}
+	}
+	switch browserType {
+	case "chromium":
+		browser, err = pw.Chromium.Launch(browserTypeLaunchOptions)
+	case "firefox":
+		browser, err = pw.Firefox.Launch(browserTypeLaunchOptions)
+	case "webkit":
+		browser, err = pw.WebKit.Launch(browserTypeLaunchOptions)
+	default:
+		return nil, fmt.Errorf("unsupported browser type: %s", browserType)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to launch browser: %w", err)
+	}
+	context, err := browser.NewContext(playwright.BrowserNewContextOptions{
+		UserAgent: playwright.String(app.userAgent),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not create new browser context: %v", err)
+	}
+	return context, nil
+}
+
+func (app *Crawler) GetPage(context playwright.BrowserContext) (playwright.Page, error) {
+
+	page, err := context.NewPage()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create page: %w", err)
+	}
+
+	// Conditionally intercept and block resources based on configuration
+	if app.engine.BlockResources {
+		err := page.Route("**/*", func(route playwright.Route) {
+			req := route.Request()
+			resourceType := req.ResourceType()
+			url := req.URL()
+
+			// Check if the resource should be blocked based on resource type or URL
+			if app.shouldBlockResource(resourceType, url) {
+				route.Abort()
+			} else {
+				route.Continue()
+			}
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to set up request interception: %w", err)
+		}
+	}
+	return page, nil
+}
 
 // HandleCookieConsent attempts to fill form fields and click the specified cookie consent button on a cookie consent dialog.
 // It logs an error if the button cannot be found or clicked.
@@ -138,7 +207,7 @@ func (app *Crawler) HandleCookieConsent(page playwright.Page) error {
 // If navigation or handling consent fails, it logs the page content to a file and returns an error.
 func (app *Crawler) NavigateToURL(page playwright.Page, url string) (*goquery.Document, error) {
 	pageGotoOptions := playwright.PageGotoOptions{
-		Timeout: playwright.Float(float64(app.engine.Timeout)),
+		Timeout: playwright.Float(float64(app.engine.Timeout.Milliseconds())),
 	}
 	if app.engine.WaitForDynamicRendering && app.engine.WaitForSelector == nil {
 		pageGotoOptions.WaitUntil = playwright.WaitUntilStateNetworkidle
@@ -146,11 +215,9 @@ func (app *Crawler) NavigateToURL(page playwright.Page, url string) (*goquery.Do
 
 	res, err := page.Goto(url, pageGotoOptions)
 	if err != nil {
-		app.Logger.Html(app.getHtmlFromPage(page), url, err.Error())
 		return nil, err
 	}
 	if !res.Ok() {
-		app.Logger.Html(app.getHtmlFromPage(page), url, fmt.Sprintf("Failed to load page: %d", res.Status()))
 		return nil, fmt.Errorf("failed to load page: %d %s", res.Status(), res.StatusText())
 	}
 	if app.engine.WaitForSelector != nil {

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/go-rod/rod"
 	"github.com/playwright-community/playwright-go"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
@@ -87,6 +88,17 @@ func (app *Crawler) processSelection(selection *goquery.Selection, selector UrlS
 
 func (app *Crawler) GetPageDom(page playwright.Page) (*goquery.Document, error) {
 	html, err := page.Content()
+	if err != nil {
+		return nil, err
+	}
+	document, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return nil, err
+	}
+	return document, nil
+}
+func (app *Crawler) GetRodPageDom(page *rod.Page) (*goquery.Document, error) {
+	html, err := page.HTML()
 	if err != nil {
 		return nil, err
 	}

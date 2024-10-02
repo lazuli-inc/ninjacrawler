@@ -17,7 +17,7 @@ import (
 
 func (app *Crawler) GetHttpClient() *http.Client {
 	client := &http.Client{
-		Timeout: (app.engine.Timeout / 1000) * time.Second,
+		Timeout: app.engine.Timeout,
 	}
 	return client
 }

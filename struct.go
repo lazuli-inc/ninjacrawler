@@ -2,6 +2,7 @@ package ninjacrawler
 
 import (
 	"github.com/PuerkitoBio/goquery"
+	"github.com/go-rod/rod"
 	"github.com/playwright-community/playwright-go"
 )
 
@@ -68,6 +69,7 @@ type CrawlerContext struct {
 	Document      *goquery.Document
 	UrlCollection UrlCollection
 	Page          playwright.Page
+	RodPage       *rod.Page
 	ApiResponse   Map
 	State         Map
 }
@@ -77,5 +79,6 @@ type CrawlResult struct {
 	Results       interface{}
 	UrlCollection UrlCollection
 	Page          playwright.Page
+	RodPage       *rod.Page
 	Document      *goquery.Document
 }

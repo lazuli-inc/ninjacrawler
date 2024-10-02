@@ -2,23 +2,12 @@ package ninjacrawler
 
 import (
 	"github.com/PuerkitoBio/goquery"
-	"github.com/playwright-community/playwright-go"
 )
 
 func (app *Crawler) handleCrawlWorker(processorConfig ProcessorConfig, proxy Proxy, urlCollection UrlCollection) (*CrawlerContext, error) {
-	var page playwright.Page
-	var browser playwright.Browser
 	var err error
 	var doc *goquery.Document
 	var apiResponse map[string]interface{}
-	if *app.engine.IsDynamic {
-		browser, page, err = app.GetBrowserPage(app.pw, app.engine.BrowserType, proxy)
-		if err != nil {
-			app.Logger.Fatal(err.Error())
-		}
-		defer browser.Close()
-		defer page.Close()
-	}
 
 	crawlableUrl := urlCollection.Url
 	if urlCollection.ApiUrl != "" {
@@ -33,7 +22,11 @@ func (app *Crawler) handleCrawlWorker(processorConfig ProcessorConfig, proxy Pro
 		app.Logger.Info("Crawling :%s: %s", processorConfig.OriginCollection, crawlableUrl)
 	}
 	if *app.engine.IsDynamic {
-		doc, err = app.NavigateToURL(page, crawlableUrl)
+		if *app.engine.Adapter == PlayWrightEngine {
+			doc, err = app.NavigateToURL(app.pwPage, crawlableUrl)
+		} else {
+			doc, err = app.NavigateRodURL(app.rdPage, crawlableUrl)
+		}
 	} else {
 		switch processorConfig.Processor.(type) {
 		case ProductDetailApi:
@@ -50,7 +43,8 @@ func (app *Crawler) handleCrawlWorker(processorConfig ProcessorConfig, proxy Pro
 		App:           app,
 		Document:      doc,
 		UrlCollection: urlCollection,
-		Page:          page,
+		Page:          app.pwPage,
+		RodPage:       app.rdPage,
 		ApiResponse:   apiResponse,
 	}
 	return crawlerCtx, nil

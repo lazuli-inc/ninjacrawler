@@ -153,6 +153,7 @@ func (app *Crawler) MarkAsError(url string, dbCollection string, errStr string, 
 	if attempt != nil {
 		attempts = attempt[0]
 	}
+	errStr = result["error_log"].(string) + "\n" + errStr
 	update := bson.D{
 		{Key: "$set", Value: bson.D{
 			{Key: "error", Value: true},

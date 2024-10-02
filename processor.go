@@ -16,7 +16,7 @@ func (app *Crawler) Crawl(configs []ProcessorConfig) {
 		crawlLimit := 0
 		if app.isLocalEnv && app.engine.DevCrawlLimit > 0 {
 			crawlLimit = app.engine.DevCrawlLimit
-		} else if !app.isLocalEnv && app.engine.StgCrawlLimit > 0 {
+		} else if app.isStgEnv && app.engine.StgCrawlLimit > 0 {
 			crawlLimit = app.engine.StgCrawlLimit
 		}
 		for {

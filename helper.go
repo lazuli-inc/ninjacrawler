@@ -592,9 +592,9 @@ func (app *Crawler) SendHtmlToBigquery(data interface{}, urlString string) error
 }
 func (app *Crawler) HandlePanic(r any) {
 	if r != nil {
-		app.Logger.Summary("Program crashed!: %v", r)
-		app.Logger.Debug("Panic caught: %v", r)
-		app.Logger.Debug("Stack trace: %v", string(debug.Stack()))
+		app.Logger.Summary("Program crashed!: %+v", r)
+		app.Logger.Debug("Panic caught: %+v", r)
+		app.Logger.Debug("Stack trace: \n%s", string(debug.Stack()))
 		os.Exit(1)
 	}
 }

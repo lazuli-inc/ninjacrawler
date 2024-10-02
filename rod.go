@@ -55,7 +55,9 @@ func (app *Crawler) NavigateRodURL(page *rod.Page, url string) (*goquery.Documen
 		return nil, err
 	}
 	wait()
-
+	if e.Response == nil {
+		return nil, fmt.Errorf("no response received: %+v", e)
+	}
 	if !Ok(e.Response.Status) {
 		return nil, fmt.Errorf("invalid status code: %d", e.Response.Status)
 	}

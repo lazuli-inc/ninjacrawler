@@ -40,6 +40,8 @@ type Crawler struct {
 	preference            *AppPreference
 	userAgent             string
 	CurrentProxy          Proxy
+	ReqCount              int32
+	CurrentProxyIndex     int32
 	CurrentCollection     string
 	CurrentUrlCollection  UrlCollection
 	CurrentUrl            string
@@ -51,10 +53,12 @@ func NewCrawler(name, url string, engines ...Engine) *Crawler {
 	config := newConfig()
 
 	crawler := &Crawler{
-		Name:         name,
-		Url:          url,
-		Config:       config,
-		CurrentProxy: Proxy{},
+		Name:              name,
+		Url:               url,
+		Config:            config,
+		CurrentProxy:      Proxy{},
+		CurrentProxyIndex: 0,
+		ReqCount:          int32(0),
 	}
 
 	defaultPreference := getDefaultPreference()
@@ -73,6 +77,7 @@ func NewCrawler(name, url string, engines ...Engine) *Crawler {
 	crawler.userAgent = config.GetString("USER_AGENT")
 	crawler.preference = &defaultPreference
 	crawler.lastWorkingProxyIndex = int32(0)
+	crawler.engine.ProxyServers = crawler.getProxyServers()
 	return crawler
 }
 
@@ -119,6 +124,9 @@ func (app *Crawler) Stop() {
 	if app.pw != nil {
 		app.pw.Stop()
 	}
+	if app.httpClient != nil {
+		app.httpClient.CloseIdleConnections()
+	}
 	if app.Client != nil {
 		app.closeClient()
 	}
@@ -151,6 +159,8 @@ func (app *Crawler) openBrowsers(proxy Proxy) {
 		if *app.engine.Adapter == RodEngine {
 			app.rdBrowser, err = app.GetRodBrowser(proxy)
 		}
+	} else {
+		app.httpClient = app.GetHttpClient()
 	}
 	if err != nil {
 		app.Logger.Fatal(err.Error())
@@ -158,12 +168,19 @@ func (app *Crawler) openBrowsers(proxy Proxy) {
 
 }
 func (app *Crawler) closeBrowsers() {
-	if app.pwBrowserCtx != nil {
-		app.pwBrowserCtx.Close()
+	if *app.engine.IsDynamic {
+		if app.pwBrowserCtx != nil {
+			app.pwBrowserCtx.Close()
+		}
+		if app.rdBrowser != nil {
+			app.rdBrowser.Close()
+		}
+	} else {
+		if app.httpClient != nil {
+			app.httpClient.CloseIdleConnections()
+		}
 	}
-	if app.rdBrowser != nil {
-		app.rdBrowser.Close()
-	}
+
 }
 
 func (app *Crawler) openPages() {
@@ -301,7 +318,6 @@ func getDefaultEngine() Engine {
 			"gstatic.com",
 		},
 		BoostCrawling:          false,
-		ProxyServers:           []Proxy{},
 		CookieConsent:          nil,
 		Timeout:                time.Duration(30) * time.Second,
 		SleepAfter:             1000,
@@ -358,19 +374,19 @@ func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 		defaultEngine.JavaScriptEnabled = eng.JavaScriptEnabled
 	}
 	if eng.BoostCrawling {
-		defaultEngine.BoostCrawling = eng.BoostCrawling
-		defaultEngine.ProxyServers = app.getProxyList()
+		//defaultEngine.BoostCrawling = eng.BoostCrawling
+		//defaultEngine.ProxyServers = app.getProxyList()
 	}
-	if len(eng.ProxyServers) > 0 {
-		config := newConfig()
-		zenrowsApiKey := config.EnvString("ZENROWS_API_KEY")
-		for _, proxy := range eng.ProxyServers {
-			if proxy.Server == ZENROWS {
-				proxy.Server = fmt.Sprintf("http://%s:@proxy.zenrows.com:8001", zenrowsApiKey)
-			}
-			defaultEngine.ProxyServers = append(defaultEngine.ProxyServers, proxy)
-		}
-	}
+	//if len(eng.ProxyServers) > 0 {
+	//	config := newConfig()
+	//	zenrowsApiKey := config.EnvString("ZENROWS_API_KEY")
+	//	for _, proxy := range eng.ProxyServers {
+	//		if proxy.Server == ZENROWS {
+	//			proxy.Server = fmt.Sprintf("http://%s:@proxy.zenrows.com:8001", zenrowsApiKey)
+	//		}
+	//		defaultEngine.ProxyServers = append(defaultEngine.ProxyServers, proxy)
+	//	}
+	//}
 	if eng.CookieConsent != nil {
 		defaultEngine.CookieConsent = eng.CookieConsent
 	}
@@ -498,6 +514,24 @@ func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	if eng.Adapter != nil {
 		defaultEngine.Adapter = eng.Adapter
 	}
+}
+
+func (app *Crawler) getProxyServers() []Proxy {
+	proxies := app.Config.GetString("PROXY_SERVERS")
+	proxyUsername := app.Config.GetString("PROXY_USERNAME")
+	proxyPassword := app.Config.GetString("PROXY_PASSWORD")
+	var proxyServers []Proxy
+
+	if len(proxies) > 0 {
+		for _, p := range strings.Split(proxies, ",") {
+			proxyServers = append(proxyServers, Proxy{
+				Server:   p,
+				Username: proxyUsername,
+				Password: proxyPassword,
+			})
+		}
+	}
+	return proxyServers
 }
 func (app *Crawler) isCpuUsageHigh() bool {
 	//usage, err := cpu.Percent(0, false)

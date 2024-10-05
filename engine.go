@@ -8,19 +8,25 @@ import (
 )
 
 type Engine struct {
-	Adapter                 *string
-	ForceInstallPlaywright  bool
-	Provider                string // http,playwright,zenrows
-	ProviderOption          ProviderQueryOption
-	BrowserType             string
-	ConcurrentLimit         int
-	IsDynamic               *bool
-	DevCrawlLimit           int
-	StgCrawlLimit           int
-	BlockResources          bool
-	JavaScriptEnabled       bool
-	BlockedURLs             []string
-	BoostCrawling           bool
+	Adapter                *string
+	ForceInstallPlaywright bool
+	Provider               string // http,playwright,zenrows
+	ProviderOption         ProviderQueryOption
+	BrowserType            string
+	ConcurrentLimit        int
+	IsDynamic              *bool
+	DevCrawlLimit          int
+	StgCrawlLimit          int
+	BlockResources         bool
+	JavaScriptEnabled      bool
+	BlockedURLs            []string
+	/*
+		Deprecated: BoostCrawling is deprecated and not work anymore
+	*/
+	BoostCrawling bool
+	/*
+		Deprecated: ProxyServers is deprecated and read only from ENV
+	*/
 	ProxyServers            []Proxy
 	ProxyStrategy           string
 	CookieConsent           *CookieAction
@@ -30,13 +36,19 @@ type Engine struct {
 	MaxRetryAttempts        int
 	IgnoreRetryOnValidation *bool
 	Args                    []string
-	SleepDuration           int
-	RetrySleepDuration      int
-	ErrorCodes              []int
-	CrawlTimeout            int
-	WaitForSelector         *string
-	StoreHtml               *bool
-	SendHtmlToBigquery      *bool
+	/*
+		SleepDuration in seconds
+	*/
+	SleepDuration int
+	/*
+		RetrySleepDuration in minutes
+	*/
+	RetrySleepDuration int
+	ErrorCodes         []int
+	CrawlTimeout       int
+	WaitForSelector    *string
+	StoreHtml          *bool
+	SendHtmlToBigquery *bool
 }
 type ProviderQueryOption struct {
 	JsRender             bool
@@ -85,11 +97,6 @@ func (app *Crawler) SetBlockResources(block bool) *Crawler {
 	return app
 }
 
-func (app *Crawler) EnableBoostCrawling() *Crawler {
-	app.engine.BoostCrawling = true
-	app.engine.ProxyServers = app.getProxyList()
-	return app
-}
 func (app *Crawler) SetCookieConsent(action *CookieAction) *Crawler {
 	app.engine.CookieConsent = action
 	return app

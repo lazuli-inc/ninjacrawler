@@ -143,7 +143,6 @@ func (l *defaultLogger) Printf(format string, args ...interface{}) {
 
 func (l *defaultLogger) Html(html, url, msg string, dir ...string) {
 	if l.app.IsValidPage(url) {
-		l.Error("Html Error: %v", msg)
 		err := l.app.writePageContentToFile(html, url, msg, dir...)
 		if err != nil {
 			l.logger.Printf("⚛️ HTML: %v", err)

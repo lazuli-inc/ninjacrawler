@@ -366,6 +366,14 @@ func (app *Crawler) getHtmlFromPage(page playwright.Page) string {
 	return html
 }
 
+func (app *Crawler) getHtmlFromRodPage(page *rod.Page) string {
+	html, err := page.HTML()
+	if err != nil {
+		app.Logger.Error("failed to get html from page", "Error", err)
+	}
+	return html
+}
+
 func (app *Crawler) LoadSites(filename string) ([]CrawlerConfig, error) {
 	var sites []CrawlerConfig
 
@@ -555,8 +563,12 @@ func (app *Crawler) GetHtml(data interface{}) (string, error) {
 	var err error
 
 	switch v := data.(type) {
-	case *playwright.Page:
-		htmlContent = app.getHtmlFromPage(*v)
+	case playwright.Page:
+		htmlContent = app.getHtmlFromPage(v)
+	case *rod.Page:
+		htmlContent = app.getHtmlFromRodPage(v)
+	case []byte:
+		htmlContent = string(v)
 	case *goquery.Document:
 		htmlContent, err = v.Html() // Fetch HTML from goquery document
 		if err != nil {
@@ -628,4 +640,45 @@ func (app *Crawler) StopCrawler() error {
 		return fmt.Errorf("api error status %d, body: %s", response.StatusCode, string(bodyBytes))
 	}
 	return nil
+}
+
+func (app *Crawler) handleHttpError(statusCode int, statusText string, url string, data interface{}) error {
+
+	msg := fmt.Sprintf("failed to fetch page: StatusCode: %v, Status: %v", statusCode, statusText)
+
+	// Handle 404 error
+	if statusCode == http.StatusNotFound {
+		_ = app.MarkAsMaxErrorAttempt(url, app.CurrentCollection, "Url Not Found")
+		return fmt.Errorf("url Not Found: StatusCode %v", statusCode)
+	}
+
+	// Handle retryable error codes
+	if inArray(app.engine.ErrorCodes, statusCode) {
+		msg = fmt.Sprintf("isRetryable: StatusCode: %v, Status: %v", statusCode, statusText)
+		app.Logger.Error(msg)
+		app.Logger.Debug("Got Blocked at URL: %s Error: %v\n", app.CurrentUrl, msg)
+	} else {
+		app.Logger.Debug("Http Error URL: %s Error: %v\n", url, msg)
+	}
+	htmlStr, err := app.GetHtml(data)
+	if err != nil {
+		return err
+	}
+	app.Logger.Html(htmlStr, url, msg)
+	return fmt.Errorf(msg)
+}
+func ensureScheme(rawUrl string) (string, error) {
+	// Check if the URL starts with a scheme (http://, https://, etc.)
+	if !strings.Contains(rawUrl, "://") {
+		// If there is no scheme, default to http
+		rawUrl = "http://" + rawUrl
+	}
+
+	// Now parse the URL
+	parsedUrl, err := url.Parse(rawUrl)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse URL: %w", err)
+	}
+
+	return parsedUrl.String(), nil
 }

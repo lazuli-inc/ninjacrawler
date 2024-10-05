@@ -218,12 +218,12 @@ func (app *Crawler) NavigateToURL(page playwright.Page, url string) (*goquery.Do
 		return nil, err
 	}
 	if !res.Ok() {
-		return nil, fmt.Errorf("failed to load page: %d %s", res.Status(), res.StatusText())
+		return nil, app.handleHttpError(res.Status(), res.StatusText(), url, page)
 	}
 	if app.engine.WaitForSelector != nil {
 		_, err = page.WaitForSelector(*app.engine.WaitForSelector, playwright.PageWaitForSelectorOptions{
 			State:   playwright.WaitForSelectorStateAttached,
-			Timeout: playwright.Float(float64(app.engine.Timeout)),
+			Timeout: playwright.Float(float64(app.engine.Timeout.Milliseconds())),
 		})
 		if err != nil {
 			app.Logger.Html(app.getHtmlFromPage(page), url, fmt.Sprintf("Failed to find %s: %s", app.engine.WaitForSelector, err.Error()))

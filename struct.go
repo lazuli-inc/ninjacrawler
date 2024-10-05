@@ -73,6 +73,10 @@ type CrawlerContext struct {
 	ApiResponse   Map
 	State         Map
 }
+type NavigationContext struct {
+	Document *goquery.Document
+	Response interface{}
+}
 
 // Struct to hold both results and the UrlCollection
 type CrawlResult struct {

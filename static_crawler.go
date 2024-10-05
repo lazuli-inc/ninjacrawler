@@ -103,7 +103,14 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 
 	} else {
 		if len(app.engine.ProxyServers) > 0 && proxyServer.Server != "" {
-			proxyURL, err := url.Parse(proxyServer.Server)
+			// Ensure the proxy URL has a scheme, defaulting to http:// if absent
+			proxyServerUrl, err := ensureScheme(proxyServer.Server)
+			if err != nil {
+				log.Fatalf("Failed to ensure scheme for proxy URL: %v", err)
+			}
+
+			// Parse the proxy URL
+			proxyURL, err := url.Parse(proxyServerUrl)
 			if err != nil {
 				log.Fatalf("Failed to parse proxy URL: %v", err)
 			}
@@ -166,38 +173,7 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 		}
 	}
 	if resp.StatusCode != http.StatusOK {
-		msg := fmt.Sprintf("failed to fetch page: StatusCode:%v and Status:%v", resp.StatusCode, resp.Status)
-		if resp.StatusCode == 404 {
-			_ = app.MarkAsMaxErrorAttempt(originalUrl, app.CurrentCollection, "Url Not Found")
-			return nil, ContentType, fmt.Errorf("Url Not Found StatusCode: %v", resp.StatusCode)
-		}
-		if inArray(app.engine.ErrorCodes, resp.StatusCode) {
-			msg = fmt.Sprintf("isRetryable: StatusCode:%v and Status:%v", resp.StatusCode, resp.Status)
-			app.Logger.Error(msg)
-			app.Logger.Debug("Got Blocked at URL: %s Error: %v\n", app.CurrentUrl, msg)
-			//app.HandleThrottling(1, resp.StatusCode)
-		} else {
-			app.Logger.Debug("Http Error URL: %s Error: %v\n", app.CurrentUrl, msg)
-		}
-		app.Logger.Html(string(body), originalUrl, msg)
-		var jsonResponse map[string]interface{}
-		err = json.Unmarshal(body, &jsonResponse)
-
-		if err == nil && jsonResponse["code"] == "RESP001" && jsonResponse["status"] == 422 && strings.Contains(jsonResponse["title"].(string), "Could not get content. try enabling premium proxies for a higher success rate (RESP001)") {
-
-			if attempt <= app.engine.MaxRetryAttempts && app.engine.ProviderOption.UsePremiumProxyRetry {
-				attempt++
-				fmt.Println("Zenrows response: ", jsonResponse)
-				urlString += "&premium_proxy=true&proxy_country=jp"
-				app.Logger.Warn("retrying with premium proxy: %s", urlString)
-				body, ContentType, err = app.getResponseBody(client, urlString, proxyServer, attempt)
-				if err != nil {
-					return nil, ContentType, err
-				}
-				return body, ContentType, nil
-			}
-		}
-		return nil, ContentType, fmt.Errorf(msg)
+		return nil, ContentType, app.handleHttpError(resp.StatusCode, resp.Status, originalUrl, body)
 	}
 	return body, ContentType, nil
 }

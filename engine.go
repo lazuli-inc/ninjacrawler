@@ -27,9 +27,12 @@ type Engine struct {
 	/*
 		Deprecated: ProxyServers is deprecated and read only from ENV
 	*/
-	ProxyServers            []Proxy
-	ProxyStrategy           string
-	CookieConsent           *CookieAction
+	ProxyServers  []Proxy
+	ProxyStrategy string
+	CookieConsent *CookieAction
+	/*
+		Timeout in seconds
+	*/
 	Timeout                 time.Duration
 	WaitForDynamicRendering bool
 	SleepAfter              int

@@ -128,6 +128,10 @@ func (app *Crawler) applySleep() {
 }
 
 func (app *Crawler) assignProxy(proxy Proxy, proxyLock *sync.Mutex) {
+	if len(app.engine.ProxyServers) == 0 || app.engine.ProxyStrategy == ProxyStrategyRotation {
+		app.Logger.Fatal("No proxies available")
+		return
+	}
 	proxyLock.Lock()
 	app.CurrentProxy = proxy
 	atomic.StoreInt32(&app.CurrentProxyIndex, atomic.LoadInt32(&app.CurrentProxyIndex)%int32(len(app.engine.ProxyServers)))

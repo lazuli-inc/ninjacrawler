@@ -128,7 +128,7 @@ func (app *Crawler) applySleep() {
 }
 
 func (app *Crawler) assignProxy(proxy Proxy, proxyLock *sync.Mutex) {
-	if len(app.engine.ProxyServers) == 0 || app.engine.ProxyStrategy == ProxyStrategyRotation {
+	if len(app.engine.ProxyServers) == 0 && app.engine.ProxyStrategy == ProxyStrategyRotation {
 		app.Logger.Fatal("No proxies available")
 		return
 	}

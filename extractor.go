@@ -164,7 +164,7 @@ func (app *Crawler) validateProductDetail(res *ProductDetail, processorConfig Pr
 		msg := fmt.Sprintf("Validation failed: %v\n", invalidFields)
 		html, _ := ctx.Document.Html()
 		if *app.engine.IsDynamic {
-			html = app.getHtmlFromPage(ctx.Page)
+			html, _ = app.GetHtml(ctx.Page)
 		}
 		app.Logger.Html(html, ctx.UrlCollection.Url, msg, "validation")
 		var err error

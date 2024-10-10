@@ -361,7 +361,7 @@ func (app *Crawler) getBaseUrl(urlString string) string {
 func (app *Crawler) getHtmlFromPage(page playwright.Page) string {
 	html, err := page.Content()
 	if err != nil {
-		app.Logger.Error("failed to get html from page", "Error", err)
+		app.Logger.Error("failed to get html from page: %s", err.Error())
 	}
 	return html
 }
@@ -369,7 +369,7 @@ func (app *Crawler) getHtmlFromPage(page playwright.Page) string {
 func (app *Crawler) getHtmlFromRodPage(page *rod.Page) string {
 	html, err := page.HTML()
 	if err != nil {
-		app.Logger.Error("failed to get html from page", "Error", err)
+		app.Logger.Error("failed to get html from page: %s", err.Error())
 	}
 	return html
 }

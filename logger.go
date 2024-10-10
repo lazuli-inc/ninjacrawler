@@ -87,6 +87,9 @@ func (l *defaultLogger) logWithGCP(level string, format string, args ...interfac
 	// Log to local logger
 	l.logger.Printf("☁️ "+format, args...)
 
+	if !l.app.Config.GetBool("LOG_TO_GCP") {
+		return
+	}
 	if l.gcpLogger != nil && level == "summary" {
 		l.gcpLogger.Log(logging.Entry{
 			Payload: map[string]interface{}{

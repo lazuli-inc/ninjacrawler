@@ -1,6 +1,7 @@
 package ninjacrawler
 
 import (
+	"context"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -22,7 +23,10 @@ func (app *Crawler) Navigate(url string) (*NavigationContext, error) {
 		time.Sleep(time.Duration(app.engine.SleepDuration) * time.Second)
 	}
 
-	navigationContext, err := app.navigateTo(url, "DeepLink", false)
+	// Add a timeout for the navigation process
+	ctx, cancel := context.WithTimeout(context.Background(), app.engine.Timeout*2)
+	defer cancel()
+	navigationContext, err := app.navigateTo(ctx, url, "DeepLink", false)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "StatusCode:404") {

@@ -19,11 +19,19 @@ func (app *Crawler) GetRodBrowser(proxy Proxy) (*rod.Browser, error) {
 		l = l.Set(flags.ProxyServer, proxy.Server)
 	}
 
-	url := l.MustLaunch()
+	url, err := l.Launch()
+	if err != nil {
+		return nil, fmt.Errorf("error launching browser: %s", err.Error())
+	}
 	browser := rod.New().ControlURL(url).MustConnect()
 	// Optionally handle proxy authentication
 	if proxy.Username != "" && proxy.Password != "" {
-		go browser.MustHandleAuth(proxy.Username, proxy.Password)()
+		go func() {
+			errAuth := browser.HandleAuth(proxy.Username, proxy.Password)()
+			if errAuth != nil {
+				app.Logger.Error("Error handling proxy authentication: %s", errAuth.Error())
+			}
+		}()
 	}
 
 	return browser, nil
@@ -32,9 +40,12 @@ func (app *Crawler) GetRodBrowser(proxy Proxy) (*rod.Browser, error) {
 // GetRodPage creates a new page using the Rod framework.
 // It returns the page instance, or an error if the operation fails.
 func (app *Crawler) GetRodPage(browser *rod.Browser) (*rod.Page, error) {
-	page := browser.MustPage()
+	page, err := browser.Page(proto.TargetCreateTarget{})
+	if err != nil {
+		return nil, fmt.Errorf("error creating page: %s", err.Error())
+	}
 
-	err := page.SetUserAgent(&proto.NetworkSetUserAgentOverride{
+	err = page.SetUserAgent(&proto.NetworkSetUserAgentOverride{
 		UserAgent: app.userAgent,
 	})
 	if err != nil {
@@ -83,13 +94,17 @@ func (app *Crawler) NavigateRodURL(page *rod.Page, url string) (*goquery.Documen
 			return nil, fmt.Errorf("element not found: %s", url)
 		}
 	} else {
-		page.MustWaitLoad()
+		errLoad := page.WaitLoad()
+		if errLoad != nil {
+			return nil, errLoad
+		}
 	}
 
 	// Handle cookie consent
 	err = app.HandleRodCookieConsent(page)
 	if err != nil {
-		app.Logger.Html(page.MustHTML(), url, err.Error())
+		html, _ := app.GetHtml(page)
+		app.Logger.Html(html, url, err.Error())
 		return nil, err
 	}
 

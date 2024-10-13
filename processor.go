@@ -1,6 +1,7 @@
 package ninjacrawler
 
 import (
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -14,6 +15,10 @@ func (app *Crawler) Crawl(configs []ProcessorConfig) {
 		app.overrideEngineDefaults(app.engine, &config.Engine)
 		app.toggleClient()
 		total := int32(0)
+		dataCount, _ := strconv.Atoi(app.GetDataCount(config.Entity))
+		if dataCount > 0 {
+			total = int32(dataCount)
+		}
 		crawlLimit := app.getCrawlLimit()
 
 		for {

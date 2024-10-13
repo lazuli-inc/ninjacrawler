@@ -220,6 +220,11 @@ func (app *Crawler) NavigateToURL(page playwright.Page, url string) (*goquery.Do
 	if !res.Ok() {
 		return nil, app.handleHttpError(res.Status(), res.StatusText(), url, page)
 	}
+
+	mError := autoMoveMouse(page)
+	if mError != nil {
+		app.Logger.Error(mError.Error())
+	}
 	if app.engine.WaitForSelector != nil {
 		_, err = page.WaitForSelector(*app.engine.WaitForSelector, playwright.PageWaitForSelectorOptions{
 			State:   playwright.WaitForSelectorStateAttached,

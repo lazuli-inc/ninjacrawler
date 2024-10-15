@@ -90,7 +90,9 @@ func (app *Crawler) processUrlsWithProxies(urls []UrlCollection, config Processo
 				app.CurrentUrlCollection = urlCollection
 				app.assignProxy(proxy, &proxyLock)
 
+				proxyLock.Lock()
 				app.openPages()
+				proxyLock.Unlock()
 				ok := app.crawlWithProxies(urlCollection, config, 0)
 				if ok && crawlLimit > 0 && atomic.AddInt32(total, 1) > int32(crawlLimit) {
 					atomic.AddInt32(total, -1)
@@ -137,11 +139,13 @@ func (app *Crawler) assignProxy(proxy Proxy, proxyLock *sync.Mutex) {
 		app.Logger.Fatal("No proxies available")
 		return
 	}
-	proxyLock.Lock()
-	app.CurrentProxy = proxy
-	atomic.StoreInt32(&app.CurrentProxyIndex, atomic.LoadInt32(&app.CurrentProxyIndex)%int32(len(app.engine.ProxyServers)))
+	if len(app.engine.ProxyServers) > 0 {
+		proxyLock.Lock()
+		app.CurrentProxy = proxy
+		atomic.StoreInt32(&app.CurrentProxyIndex, atomic.LoadInt32(&app.CurrentProxyIndex)%int32(len(app.engine.ProxyServers)))
 
-	proxyLock.Unlock()
+		proxyLock.Unlock()
+	}
 }
 
 func (app *Crawler) crawlWithProxies(urlCollection UrlCollection, config ProcessorConfig, attempt int) bool {
@@ -153,8 +157,6 @@ func (app *Crawler) crawlWithProxies(urlCollection UrlCollection, config Process
 		app.processCrawlSuccess(ctx, config)
 		return true
 	}
-
-	defer app.closePages()
 	return false
 }
 

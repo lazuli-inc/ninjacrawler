@@ -9,7 +9,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"log/slog"
 )
 
 func (app *Crawler) mustGetClient() *mongo.Client {
@@ -21,7 +20,12 @@ func (app *Crawler) mustGetClient() *mongo.Client {
 		app.Config.Env("DB_HOST"),
 		app.Config.Env("DB_PORT"),
 	)
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(databaseURL))
+	clientOptions := options.Client().
+		ApplyURI(databaseURL).
+		SetMaxPoolSize(uint64(app.engine.ConcurrentLimit * 2)).
+		SetServerSelectionTimeout(10 * time.Second)
+
+	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		panic(err)
 	}
@@ -295,14 +299,18 @@ func (app *Crawler) getUrlCollections(collection string) []UrlCollection {
 func (app *Crawler) filterUrlData(filterCondition bson.D, mongoCollection *mongo.Collection) []UrlCollection {
 	findOptions := options.Find().SetLimit(dbFilterLimit)
 
-	cursor, err := mongoCollection.Find(context.TODO(), filterCondition, findOptions)
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	cursor, err := mongoCollection.Find(ctx, filterCondition, findOptions)
 	if err != nil {
-		app.Logger.Error(err.Error())
+		app.Logger.Error("Failed to retrieve URL data: " + err.Error())
 	}
+	defer cursor.Close(ctx)
 
 	var results []UrlCollection
-	if err = cursor.All(context.TODO(), &results); err != nil {
-		app.Logger.Error(err.Error())
+	if err := cursor.All(ctx, &results); err != nil {
+		app.Logger.Error("Failed to decode URL data: " + err.Error())
 	}
 
 	return results
@@ -312,14 +320,18 @@ func (app *Crawler) filterUrlData(filterCondition bson.D, mongoCollection *mongo
 func filterData(filterCondition bson.D, mongoCollection *mongo.Collection) []bson.M {
 	findOptions := options.Find().SetLimit(dbFilterLimit)
 
-	cursor, err := mongoCollection.Find(context.TODO(), filterCondition, findOptions)
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	cursor, err := mongoCollection.Find(ctx, filterCondition, findOptions)
 	if err != nil {
-		slog.Error(err.Error())
+		fmt.Println("Failed to retrieve data: " + err.Error())
 	}
+	defer cursor.Close(ctx)
 
 	var results []bson.M
-	if err = cursor.All(context.TODO(), &results); err != nil {
-		slog.Error(err.Error())
+	if err := cursor.All(ctx, &results); err != nil {
+		fmt.Println("Failed to decode data: " + err.Error())
 	}
 
 	return results
@@ -345,27 +357,28 @@ func (app *Crawler) closeClient() error {
 
 // getUrlCollections retrieves URL collections from a collection that meet specific criteria.
 func (app *Crawler) GetProductDetailCollections(collection string, currentPage int) []ProductDetail {
-	pageSize := 10000
-	findOptions := options.Find()
-	findOptions.SetSkip(int64((currentPage - 1) * pageSize))
-	findOptions.SetLimit(int64(pageSize))
+	pageSize := 10000 // can be passed as a parameter for flexibility
+	findOptions := options.Find().
+		SetSkip(int64((currentPage - 1) * pageSize)).
+		SetLimit(int64(pageSize))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	cursor, err := app.getCollection(collection).Find(context.TODO(), bson.D{}, findOptions)
+	cursor, err := app.getCollection(collection).Find(ctx, bson.D{}, findOptions)
 	if err != nil {
-		app.Logger.Error(err.Error())
+		app.Logger.Error("Failed to retrieve product details: " + err.Error())
 	}
-
 	defer cursor.Close(ctx)
 
 	var results []ProductDetail
-	if err = cursor.All(context.TODO(), &results); err != nil {
-		app.Logger.Error(err.Error())
+	if err := cursor.All(ctx, &results); err != nil {
+		app.Logger.Error("Failed to decode product details: " + err.Error())
 	}
+
 	return results
 }
+
 func (app *Crawler) GetDataCount(collection string) string {
 	dataCollection := app.getCollection(collection)
 	count, err := dataCollection.CountDocuments(context.TODO(), bson.D{{}})

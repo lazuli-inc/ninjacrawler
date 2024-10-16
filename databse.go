@@ -12,7 +12,7 @@ import (
 )
 
 func (app *Crawler) mustGetClient() *mongo.Client {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 	databaseURL := fmt.Sprintf("mongodb://%s:%s@%s:%s",
 		app.Config.Env("DB_USERNAME"),
@@ -43,7 +43,7 @@ func (app *Crawler) mustGetClient() *mongo.Client {
 // dropDatabase drops the specified database.
 func (app *Crawler) dropDatabase() error {
 	client := app.mustGetClient()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 	err := client.Database(app.Name).Drop(ctx)
 	if err != nil {
@@ -81,7 +81,7 @@ func (app *Crawler) insert(model string, urlCollections []UrlCollection, parent 
 	app.InsertUrlCollections(model, urlCollections, parent)
 }
 func (app *Crawler) InsertUrlCollections(model string, urlCollections []UrlCollection, parent string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
 	var documents []interface{}
@@ -107,7 +107,7 @@ func (app *Crawler) InsertUrlCollections(model string, urlCollections []UrlColle
 
 // newSite creates a new site collection document in the database.
 func (app *Crawler) newSite() {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
 	document := SiteCollection{
@@ -125,7 +125,7 @@ func (app *Crawler) newSite() {
 
 // saveProductDetail saves or updates a product detail document in the database.
 func (app *Crawler) saveProductDetail(model string, productDetail *ProductDetail) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
 	collection := app.getCollection(model)
@@ -141,7 +141,7 @@ func (app *Crawler) saveProductDetail(model string, productDetail *ProductDetail
 
 // MarkAsError marks a URL collection as having encountered an error and updates the database.
 func (app *Crawler) MarkAsError(url string, dbCollection string, errStr string, attempt ...int32) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 	var result bson.M
 
@@ -180,7 +180,7 @@ func (app *Crawler) MarkAsError(url string, dbCollection string, errStr string, 
 	return nil
 }
 func (app *Crawler) MarkAsMaxErrorAttempt(url string, dbCollection, errStr string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 	var result bson.M
 
@@ -209,7 +209,7 @@ func (app *Crawler) MarkAsMaxErrorAttempt(url string, dbCollection, errStr strin
 	return nil
 }
 func (app *Crawler) updateStatusCode(url string, value int) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 	var result bson.M
 
@@ -350,7 +350,7 @@ func extractUrls(results []bson.M) []string {
 
 // close closes the MongoDB client connection.
 func (app *Crawler) closeClient() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 	return app.Disconnect(ctx)
 }

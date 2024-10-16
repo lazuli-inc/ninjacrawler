@@ -17,7 +17,7 @@ var startTime time.Time
 const (
 	baseCollection = "sites"
 	dbFilterLimit  = 1000
-	dbTimeout      = 30 * time.Second
+	dbTimeout      = 120 * time.Second
 )
 
 type Crawler struct {

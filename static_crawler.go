@@ -71,6 +71,8 @@ func (app *Crawler) NavigateToApiURL(client *http.Client, urlString string, prox
 }
 
 func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxyServer Proxy, attempt int) ([]byte, string, error) {
+	app.mu.Lock()         // Lock before accessing/modifying shared state
+	defer app.mu.Unlock() // Unlock when the function returns
 	app.CurrentUrl = urlString
 	ContentType := ""
 	//proxyIp := ""

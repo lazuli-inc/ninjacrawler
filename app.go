@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -47,6 +48,7 @@ type Crawler struct {
 	CurrentUrlCollection  UrlCollection
 	CurrentUrl            string
 	lastWorkingProxyIndex int32
+	mu                    sync.Mutex
 }
 
 func NewCrawler(name, url string, engines ...Engine) *Crawler {
@@ -343,6 +345,8 @@ func getDefaultEngine() Engine {
 		StoreHtml:               Bool(false),
 		SendHtmlToBigquery:      Bool(false),
 		Adapter:                 String(PlayWrightEngine),
+		SimulateMouse:           Bool(false),
+		OpenDevTools:            Bool(false),
 	}
 }
 
@@ -514,6 +518,12 @@ func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	}
 	if eng.Adapter != nil {
 		defaultEngine.Adapter = eng.Adapter
+	}
+	if eng.SimulateMouse != nil {
+		defaultEngine.SimulateMouse = eng.SimulateMouse
+	}
+	if eng.OpenDevTools != nil {
+		defaultEngine.OpenDevTools = eng.OpenDevTools
 	}
 }
 

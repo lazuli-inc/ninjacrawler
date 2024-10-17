@@ -1,8 +1,11 @@
 package ninjacrawler
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
-func (app *Crawler) extract(processorConfig ProcessorConfig, ctx CrawlerContext) {
+func (app *Crawler) extract(processorConfig ProcessorConfig, ctx CrawlerContext) error {
 	if processorConfig.StateHandler != nil {
 		data := processorConfig.StateHandler(ctx)
 		ctx.State = data
@@ -22,8 +25,7 @@ func (app *Crawler) extract(processorConfig ProcessorConfig, ctx CrawlerContext)
 		if !processorConfig.Preference.DoNotMarkAsComplete {
 			err := app.markAsComplete(ctx.UrlCollection.Url, processorConfig.OriginCollection)
 			if err != nil {
-				app.Logger.Error(err.Error())
-				return
+				return err
 			}
 		}
 	case func(CrawlerContext, func([]UrlCollection, string)) error:
@@ -50,16 +52,14 @@ func (app *Crawler) extract(processorConfig ProcessorConfig, ctx CrawlerContext)
 		if handleErr != nil {
 			markAsError := app.MarkAsError(ctx.UrlCollection.Url, processorConfig.OriginCollection, handleErr.Error())
 			if markAsError != nil {
-				app.Logger.Info(markAsError.Error())
-				return
+				return markAsError
 			}
 			app.Logger.Error(handleErr.Error())
 		} else {
 			if !processorConfig.Preference.DoNotMarkAsComplete && shouldMarkAsComplete {
 				err := app.markAsComplete(ctx.UrlCollection.Url, processorConfig.OriginCollection)
 				if err != nil {
-					app.Logger.Error(err.Error())
-					return
+					return err
 				}
 			}
 		}
@@ -79,8 +79,7 @@ func (app *Crawler) extract(processorConfig ProcessorConfig, ctx CrawlerContext)
 		if !processorConfig.Preference.DoNotMarkAsComplete {
 			err := app.markAsComplete(ctx.UrlCollection.Url, processorConfig.OriginCollection)
 			if err != nil {
-				app.Logger.Error(err.Error())
-				return
+				return err
 			}
 		}
 
@@ -110,16 +109,14 @@ func (app *Crawler) extract(processorConfig ProcessorConfig, ctx CrawlerContext)
 		if handleErr != nil {
 			markAsError := app.MarkAsError(ctx.UrlCollection.Url, processorConfig.OriginCollection, handleErr.Error())
 			if markAsError != nil {
-				app.Logger.Info(markAsError.Error())
-				return
+				return markAsError
 			}
 			app.Logger.Error(handleErr.Error())
 		} else {
 			if !processorConfig.Preference.DoNotMarkAsComplete && shouldMarkAsComplete {
 				err := app.markAsComplete(ctx.UrlCollection.Url, processorConfig.OriginCollection)
 				if err != nil {
-					app.Logger.Error(err.Error())
-					return
+					return err
 				}
 			}
 		}
@@ -127,31 +124,30 @@ func (app *Crawler) extract(processorConfig ProcessorConfig, ctx CrawlerContext)
 		scrapResult := ctx.scrapData(processorConfig.Processor)
 		err := app.validateProductDetail(scrapResult, processorConfig, ctx)
 		if err != nil {
-			app.Logger.Error(err.Error())
-			return
+			return err
 		}
 		if !processorConfig.Preference.DoNotMarkAsComplete {
-			err := app.markAsComplete(ctx.UrlCollection.Url, processorConfig.OriginCollection)
-			if err != nil {
-				return
+			errM := app.markAsComplete(ctx.UrlCollection.Url, processorConfig.OriginCollection)
+			if errM != nil {
+				return errM
 			}
 		}
 	case ProductDetailApi:
 		scrapResult := ctx.handleProductDetailApi(processorConfig.Processor)
 		err := app.validateProductDetail(scrapResult, processorConfig, ctx)
 		if err != nil {
-			app.Logger.Error(err.Error())
-			return
+			return err
 		}
 		if !processorConfig.Preference.DoNotMarkAsComplete {
-			err := app.markAsComplete(ctx.UrlCollection.Url, processorConfig.OriginCollection)
-			if err != nil {
-				return
+			errM := app.markAsComplete(ctx.UrlCollection.Url, processorConfig.OriginCollection)
+			if errM != nil {
+				return errM
 			}
 		}
 	default:
 		app.Logger.Fatal("Unsupported processor type: %T", processorConfig.Processor)
 	}
+	return nil
 
 }
 
@@ -163,12 +159,9 @@ func (app *Crawler) validateProductDetail(res *ProductDetail, processorConfig Pr
 	if len(invalidFields) > 0 {
 		msg := fmt.Sprintf("Validation failed: %v\n", invalidFields)
 		html, _ := ctx.Document.Html()
-		if *app.engine.IsDynamic {
-			html, _ = app.GetHtml(ctx.Page)
-		}
 		app.Logger.Html(html, ctx.UrlCollection.Url, msg, "validation")
 		var err error
-		if *app.engine.IgnoreRetryOnValidation {
+		if *app.engine.IgnoreRetryOnValidation || !strings.Contains(invalidFields[0], "isRetryable") {
 			err = app.MarkAsMaxErrorAttempt(ctx.UrlCollection.Url, processorConfig.OriginCollection, msg)
 		} else {
 			err = app.MarkAsError(ctx.UrlCollection.Url, processorConfig.OriginCollection, msg)

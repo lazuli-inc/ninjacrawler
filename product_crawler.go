@@ -223,7 +223,7 @@ func validateRequiredFields(product *ProductDetail, validationRules []string) ([
 				for _, excludeValue := range excludeValues {
 					excludeValue = strings.TrimSpace(excludeValue)
 					if strings.TrimSpace(fieldValueStr) == excludeValue {
-						invalidFields = append(invalidFields, fmt.Sprintf("%s: blacklist value '%s'", f.Name, excludeValue))
+						invalidFields = append(invalidFields, fmt.Sprintf("isRetryable: %s: blacklist value '%s'", f.Name, excludeValue))
 						break
 					}
 				}

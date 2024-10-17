@@ -52,6 +52,8 @@ type Engine struct {
 	WaitForSelector    *string
 	StoreHtml          *bool
 	SendHtmlToBigquery *bool
+	SimulateMouse      *bool
+	OpenDevTools       *bool
 }
 type ProviderQueryOption struct {
 	JsRender             bool

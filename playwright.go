@@ -95,7 +95,9 @@ func (app *Crawler) GetBrowser(pw *playwright.Playwright, browserType string, pr
 
 	var browserTypeLaunchOptions playwright.BrowserTypeLaunchOptions
 	browserTypeLaunchOptions.Headless = playwright.Bool(!app.isLocalEnv)
-	browserTypeLaunchOptions.Devtools = playwright.Bool(app.isLocalEnv)
+	if app.isLocalEnv && *app.engine.OpenDevTools {
+		browserTypeLaunchOptions.Devtools = playwright.Bool(true)
+	}
 	// Set additional launch arguments
 	if len(app.engine.Args) > 0 {
 		browserTypeLaunchOptions.Args = app.engine.Args
@@ -220,9 +222,11 @@ func (app *Crawler) NavigateToURL(page playwright.Page, url string) (*goquery.Do
 		return nil, app.handleHttpError(res.Status(), res.StatusText(), url, page)
 	}
 
-	mError := autoMoveMouse(page)
-	if mError != nil {
-		app.Logger.Error("Mouse Move Error: %s", mError.Error())
+	if app.engine.SimulateMouse != nil && *app.engine.SimulateMouse {
+		mError := autoMoveMouse(page)
+		if mError != nil {
+			app.Logger.Error("Mouse Simulate Error: %s", mError.Error())
+		}
 	}
 	if app.engine.WaitForSelector != nil {
 		_, err = page.WaitForSelector(*app.engine.WaitForSelector, playwright.PageWaitForSelectorOptions{

@@ -23,6 +23,7 @@ import (
 	"regexp"
 	"runtime/debug"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -681,4 +682,14 @@ func ensureScheme(rawUrl string) (string, error) {
 	}
 
 	return parsedUrl.String(), nil
+}
+
+func (app *Crawler) getCurrentProxy() Proxy {
+	locker.Lock()
+	defer locker.Unlock()
+	proxy := Proxy{}
+	if len(app.engine.ProxyServers) > 0 {
+		proxy = app.engine.ProxyServers[atomic.LoadInt32(&app.CurrentProxyIndex)]
+	}
+	return proxy
 }

@@ -33,12 +33,16 @@ type defaultLogger struct {
 
 // newDefaultLogger creates a new instance of defaultLogger.
 func newDefaultLogger(app *Crawler, siteName string) *defaultLogger {
-	logFile, err := os.OpenFile(getLogFileName(siteName), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		log.Fatalf("Failed to open log file: %v", err)
-	}
+	var multiWriter io.Writer = os.Stdout // By default, log only to stdout.
 
-	multiWriter := io.MultiWriter(logFile, os.Stdout)
+	// Check if file logging is enabled in the config.
+	if app.Config.GetBool("ENABLE_FILE_LOGGING") {
+		logFile, err := os.OpenFile(getLogFileName(siteName), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+		if err != nil {
+			log.Fatalf("Failed to open log file: %v", err)
+		}
+		multiWriter = io.MultiWriter(logFile, os.Stdout)
+	}
 
 	// Create the default logger
 	dLogger := &defaultLogger{
@@ -53,8 +57,8 @@ func newDefaultLogger(app *Crawler, siteName string) *defaultLogger {
 	}
 
 	return dLogger
-
 }
+
 func getLogFileName(siteName string) string {
 	currentDate := time.Now().Format("2006-01-02")
 	directory := filepath.Join("storage", "logs", siteName)

@@ -143,7 +143,10 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 
 	resp, err := client.Do(req)
 	if err != nil {
-		errMsg := fmt.Sprintf("Failed to send request: %v", err)
+		if strings.Contains(err.Error(), "Proxy Authentication Required") {
+			return nil, ContentType, fmt.Errorf("isRetryable: Unexpected Error: %s", err.Error())
+		}
+		errMsg := fmt.Sprintf("failed to navigate %s", err.Error())
 		if strings.Contains(err.Error(), "Client.Timeout") {
 			_ = app.updateStatusCode(originalUrl, 408)
 		}

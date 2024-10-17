@@ -145,8 +145,8 @@ func (app *Crawler) getProxy(batchCount int, proxies []Proxy, proxyLock *sync.Mu
 	return proxy
 }
 func (app *Crawler) applySleep() {
-	// Random sleep between 500ms and 1.5s
-	sleepDuration := time.Duration(rand.Intn(1001)+500) * time.Millisecond
+	// Random sleep between 500ms and 1s
+	sleepDuration := time.Duration(rand.Intn(501)+500) * time.Millisecond
 	time.Sleep(sleepDuration)
 	if atomic.LoadInt32(&app.ReqCount) > 0 && atomic.LoadInt32(&app.ReqCount)%int32(app.engine.SleepAfter) == 0 {
 		app.Logger.Info("Sleeping %d seconds after %d operations", app.engine.SleepDuration, app.engine.SleepAfter)
@@ -176,7 +176,7 @@ func (app *Crawler) crawlWithProxies(urlCollection UrlCollection, config Process
 		errExtract := app.extract(config, *ctx)
 		if errExtract != nil {
 			if strings.Contains(errExtract.Error(), "isRetryable") {
-				return app.retryWithDifferentProxy(attempt)
+				return app.retryWithDifferentProxy(errExtract, attempt)
 			}
 			app.Logger.Error(errExtract.Error())
 			return false
@@ -206,7 +206,7 @@ func (app *Crawler) handleCrawlError(err error, urlCollection UrlCollection, con
 	}
 
 	if strings.Contains(err.Error(), "isRetryable") {
-		return app.retryWithDifferentProxy(attempt)
+		return app.retryWithDifferentProxy(err, attempt)
 	}
 
 	if markErr := app.MarkAsError(urlCollection.Url, config.OriginCollection, err.Error()); markErr != nil {
@@ -216,11 +216,12 @@ func (app *Crawler) handleCrawlError(err error, urlCollection UrlCollection, con
 	return false
 }
 
-func (app *Crawler) retryWithDifferentProxy(attempt int) bool {
+func (app *Crawler) retryWithDifferentProxy(err error, attempt int) bool {
 	if len(app.engine.ProxyServers) == 0 || app.engine.ProxyStrategy != ProxyStrategyRotation {
 		return false
 	}
 
+	app.Logger.Warn("Retrying after %d requests with different proxy %s", atomic.LoadInt32(&app.ReqCount), err.Error())
 	shouldRotateProxy = true
 
 	if app.engine.RetrySleepDuration > 0 {

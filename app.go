@@ -340,6 +340,7 @@ func getDefaultEngine() Engine {
 		ProxyStrategy:      ProxyStrategyConcurrency,
 		ErrorCodes: []int{
 			403,
+			407,
 		},
 		IgnoreRetryOnValidation: Bool(false),
 		StoreHtml:               Bool(false),

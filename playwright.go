@@ -216,7 +216,7 @@ func (app *Crawler) NavigateToURL(page playwright.Page, url string) (*goquery.Do
 	}
 	res, err := page.Goto(url, pageGotoOptions)
 	if err != nil {
-		return nil, fmt.Errorf("failed to navigate to %s: %w", url, err)
+		return app.handleProxyError(err)
 	}
 	if !res.Ok() {
 		return nil, app.handleHttpError(res.Status(), res.StatusText(), url, page)

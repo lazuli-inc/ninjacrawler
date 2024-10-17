@@ -63,7 +63,7 @@ func (app *Crawler) NavigateRodURL(page *rod.Page, url string) (*goquery.Documen
 	// Go to the URL with a timeout
 	err := page.Timeout(app.engine.Timeout).Navigate(url)
 	if err != nil {
-		return nil, err
+		return app.handleProxyError(err)
 	}
 	wait()
 	if e.Response == nil {

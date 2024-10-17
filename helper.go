@@ -668,6 +668,12 @@ func (app *Crawler) handleHttpError(statusCode int, statusText string, url strin
 	app.Logger.Html(htmlStr, url, msg)
 	return fmt.Errorf(msg)
 }
+func (app *Crawler) handleProxyError(err error) (*goquery.Document, error) {
+	if strings.Contains(err.Error(), "net::ERR_HTTP_RESPONSE_CODE_FAILURE") || strings.Contains(err.Error(), "net::ERR_INVALID_AUTH_CREDENTIALS") {
+		return nil, fmt.Errorf("isRetryable: Unexpected Error: %s", err.Error())
+	}
+	return nil, fmt.Errorf("failed to navigate %s", err.Error())
+}
 func ensureScheme(rawUrl string) (string, error) {
 	// Check if the URL starts with a scheme (http://, https://, etc.)
 	if !strings.Contains(rawUrl, "://") {

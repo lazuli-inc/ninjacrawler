@@ -177,6 +177,9 @@ func (app *Crawler) closeBrowsers() {
 		}
 		if app.rdBrowser != nil {
 			app.rdBrowser.Close()
+			if err := app.cleanUpTempFiles(); err != nil {
+				app.Logger.Error("Failed to clean up temp files: %v", err)
+			}
 		}
 	} else {
 		if app.httpClient != nil {
@@ -200,15 +203,6 @@ func (app *Crawler) openPages() {
 		app.Logger.Fatal(err.Error())
 	}
 
-}
-
-func (app *Crawler) closePages() {
-	if app.pwPage != nil {
-		app.pwPage.Close()
-	}
-	if app.rdPage != nil {
-		app.rdPage.Close()
-	}
 }
 
 func (app *Crawler) UploadLogs() {

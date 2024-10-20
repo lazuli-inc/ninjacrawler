@@ -176,7 +176,7 @@ func (app *Crawler) crawlWithProxies(urlCollection UrlCollection, config Process
 		errExtract := app.extract(config, *ctx)
 		if errExtract != nil {
 			if strings.Contains(errExtract.Error(), "isRetryable") {
-				return app.retryWithDifferentProxy(errExtract, attempt)
+				return app.rotateProxy(errExtract, attempt)
 			}
 			app.Logger.Error(errExtract.Error())
 			return false
@@ -206,7 +206,7 @@ func (app *Crawler) handleCrawlError(err error, urlCollection UrlCollection, con
 	}
 
 	if strings.Contains(err.Error(), "isRetryable") {
-		return app.retryWithDifferentProxy(err, attempt)
+		return app.rotateProxy(err, attempt)
 	}
 
 	if markErr := app.MarkAsError(urlCollection.Url, config.OriginCollection, err.Error()); markErr != nil {
@@ -216,7 +216,7 @@ func (app *Crawler) handleCrawlError(err error, urlCollection UrlCollection, con
 	return false
 }
 
-func (app *Crawler) retryWithDifferentProxy(err error, attempt int) bool {
+func (app *Crawler) rotateProxy(err error, attempt int) bool {
 	if len(app.engine.ProxyServers) == 0 || app.engine.ProxyStrategy != ProxyStrategyRotation {
 		return false
 	}

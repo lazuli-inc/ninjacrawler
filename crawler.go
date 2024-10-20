@@ -116,7 +116,7 @@ func (app *Crawler) crawlWorker(ctx context.Context, processorConfig ProcessorCo
 				app.Logger.Info("Crawling :%s: %s", processorConfig.OriginCollection, crawlableUrl)
 			}
 			if *app.engine.IsDynamic {
-				doc, err = app.NavigateToURL(page, crawlableUrl)
+				_, doc, err = app.NavigateToURL(page, crawlableUrl)
 			} else {
 				switch processorConfig.Processor.(type) {
 				case ProductDetailApi:

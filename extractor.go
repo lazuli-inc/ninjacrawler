@@ -6,6 +6,7 @@ import (
 )
 
 func (app *Crawler) extract(processorConfig ProcessorConfig, ctx CrawlerContext) error {
+	defer app.closePages(ctx)
 	if processorConfig.StateHandler != nil {
 		data := processorConfig.StateHandler(ctx)
 		ctx.State = data
@@ -184,4 +185,22 @@ func (app *Crawler) validateProductDetail(res *ProductDetail, processorConfig Pr
 		}
 	}
 	return nil
+}
+
+func (app *Crawler) closePages(ctx CrawlerContext) {
+	if *app.engine.IsDynamic {
+		if *app.engine.Adapter == PlayWrightEngine {
+			err := ctx.Page.Close()
+			if err != nil {
+				app.Logger.Error("Failed to close page: %v", err)
+				return
+			}
+		} else {
+			err := ctx.RodPage.Close()
+			if err != nil {
+				app.Logger.Error("Failed to close page: %v", err)
+				return
+			}
+		}
+	}
 }

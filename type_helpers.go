@@ -30,3 +30,7 @@ func Int(v int) *int {
 func Float(v float64) *float64 {
 	return &v
 }
+
+func Slice(v []string) *[]string {
+	return &v
+}

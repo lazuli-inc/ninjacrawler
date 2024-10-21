@@ -18,6 +18,7 @@ func (app *Crawler) Crawl(configs []ProcessorConfig) {
 		app.overrideEngineDefaults(app.engine, &config.Engine)
 		app.toggleClient()
 
+		app.CurrentProcessorConfig = config
 		var total int32 = 0
 		dataCount, _ := strconv.Atoi(app.GetDataCount(config.Entity))
 		if dataCount > 0 {

@@ -65,11 +65,25 @@ func (app *Crawler) getCollection(collectionName string) *mongo.Collection {
 
 // ensureUniqueIndex ensures that the "url" field in the collection has a unique index.
 func (app *Crawler) ensureUniqueIndex(collection *mongo.Collection) {
+	// Create a slice for the index keys, starting with the default 'url'
+	indexKeys := bson.D{{Key: "url", Value: 1}}
+
+	// Add additional unique fields, avoiding duplicates
+	if app.CurrentProcessorConfig.CollectionIndex != nil {
+		for _, field := range *app.CurrentProcessorConfig.CollectionIndex {
+			if field != "url" { // Skip if it's already 'url'
+				indexKeys = append(indexKeys, bson.E{Key: field, Value: 1})
+			}
+		}
+	}
+
+	// Create the index model
 	indexModel := mongo.IndexModel{
-		Keys:    bson.M{"url": 1},
+		Keys:    indexKeys, // Use bson.D for ordered field key-value pairs
 		Options: options.Index().SetUnique(true),
 	}
 
+	// Create the index on the collection
 	_, err := collection.Indexes().CreateOne(context.Background(), indexModel)
 	if err != nil {
 		app.Logger.Error("Could not create index: %v", err)

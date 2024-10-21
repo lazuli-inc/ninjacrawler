@@ -11,6 +11,7 @@ const ZENROWS = "zenrows"
 type ProcessorConfig struct {
 	Entity           string `json:"entity"`
 	OriginCollection string `json:"originCollection"`
+	CollectionIndex  *[]string
 	Processor        interface{}
 	Preference       Preference    `json:"preference"`
 	Engine           Engine        `json:"engine"`

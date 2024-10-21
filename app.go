@@ -23,32 +23,33 @@ const (
 
 type Crawler struct {
 	*mongo.Client
-	Config                *configService
-	Name                  string
-	Url                   string
-	BaseUrl               string
-	pw                    *playwright.Playwright
-	pwBrowserCtx          playwright.BrowserContext
-	pwPage                playwright.Page
-	rdBrowser             *rod.Browser
-	rdPage                *rod.Page
-	UrlSelectors          []UrlSelector
-	ProductDetailSelector ProductDetailSelector
-	engine                *Engine
-	Logger                *defaultLogger
-	httpClient            *http.Client
-	isLocalEnv            bool
-	isStgEnv              bool
-	preference            *AppPreference
-	userAgent             string
-	CurrentProxy          Proxy
-	ReqCount              int32
-	CurrentProxyIndex     int32
-	CurrentCollection     string
-	CurrentUrlCollection  UrlCollection
-	CurrentUrl            string
-	lastWorkingProxyIndex int32
-	mu                    sync.Mutex
+	Config                 *configService
+	Name                   string
+	Url                    string
+	BaseUrl                string
+	pw                     *playwright.Playwright
+	pwBrowserCtx           playwright.BrowserContext
+	pwPage                 playwright.Page
+	rdBrowser              *rod.Browser
+	rdPage                 *rod.Page
+	UrlSelectors           []UrlSelector
+	ProductDetailSelector  ProductDetailSelector
+	engine                 *Engine
+	Logger                 *defaultLogger
+	httpClient             *http.Client
+	isLocalEnv             bool
+	isStgEnv               bool
+	preference             *AppPreference
+	userAgent              string
+	CurrentProxy           Proxy
+	ReqCount               int32
+	CurrentProxyIndex      int32
+	CurrentCollection      string
+	CurrentUrlCollection   UrlCollection
+	CurrentUrl             string
+	lastWorkingProxyIndex  int32
+	mu                     sync.Mutex
+	CurrentProcessorConfig ProcessorConfig
 }
 
 func NewCrawler(name, url string, engines ...Engine) *Crawler {

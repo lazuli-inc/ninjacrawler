@@ -61,7 +61,8 @@ func (app *Crawler) NavigateRodURL(page *rod.Page, url string) (*rod.Page, *goqu
 	e := proto.NetworkResponseReceived{}
 	wait := page.WaitEvent(&e)
 	// Go to the URL with a timeout
-	err := page.Timeout(app.engine.Timeout).Navigate(url)
+	pageWithTimeout := page.Timeout(app.engine.Timeout)
+	err := pageWithTimeout.Navigate(url)
 	if err != nil {
 		d, e := app.handleProxyError(err)
 		return nil, d, e

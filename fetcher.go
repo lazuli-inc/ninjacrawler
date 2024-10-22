@@ -34,10 +34,18 @@ func (app *Crawler) handleCrawlWorker(processorConfig ProcessorConfig, urlCollec
 		return nil, err
 	}
 
+	crawlerCtx := app.getCrawlerCtx(navigationContext)
+	crawlerCtx.UrlCollection = urlCollection
+	if navigateToApi {
+		crawlerCtx.ApiResponse = navigationContext.Response.(Map)
+	}
+	return crawlerCtx, nil
+}
+
+func (app *Crawler) getCrawlerCtx(navigationContext *NavigationContext) *CrawlerContext {
 	crawlerCtx := &CrawlerContext{
-		App:           app,
-		Document:      navigationContext.Document,
-		UrlCollection: urlCollection,
+		App:      app,
+		Document: navigationContext.Document,
 	}
 
 	if *app.engine.IsDynamic {
@@ -46,12 +54,9 @@ func (app *Crawler) handleCrawlWorker(processorConfig ProcessorConfig, urlCollec
 		} else {
 			crawlerCtx.RodPage = navigationContext.Response.(*rod.Page)
 		}
-	} else if navigateToApi {
-		crawlerCtx.ApiResponse = navigationContext.Response.(Map)
 	}
-	return crawlerCtx, nil
+	return crawlerCtx
 }
-
 func (app *Crawler) navigateTo(ctx context.Context, crawlableUrl string, origin string, navigateToApi bool, currentProxy Proxy) (*NavigationContext, error) {
 	var (
 		err      error

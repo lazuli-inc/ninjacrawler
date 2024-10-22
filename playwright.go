@@ -186,11 +186,15 @@ func (app *Crawler) NavigateToURL(page playwright.Page, url string) (playwright.
 	}
 
 	// Wait for selector if applicable
-	if app.engine.WaitForSelector != nil {
-		_, err = page.WaitForSelector(*app.engine.WaitForSelector, playwright.PageWaitForSelectorOptions{
-			State:   playwright.WaitForSelectorStateAttached,
+	if app.engine.WaitForSelector != nil || app.engine.WaitForSelectorVisible != nil {
+		pageWaitForSelectorOptions := playwright.PageWaitForSelectorOptions{
 			Timeout: playwright.Float(float64(app.engine.Timeout.Milliseconds())),
-		})
+			State:   playwright.WaitForSelectorStateAttached,
+		}
+		if app.engine.WaitForSelectorVisible != nil {
+			pageWaitForSelectorOptions.State = playwright.WaitForSelectorStateVisible
+		}
+		_, err = page.WaitForSelector(*app.engine.WaitForSelector, pageWaitForSelectorOptions)
 		if err != nil {
 			app.Logger.Html(app.getHtmlFromPage(page), url, fmt.Sprintf("Failed to find %s: %s", *app.engine.WaitForSelector, err.Error()))
 			return nil, nil, fmt.Errorf("failed to find %s: %w", app.engine.WaitForSelector, err)

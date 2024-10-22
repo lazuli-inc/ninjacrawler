@@ -328,11 +328,12 @@ func getDefaultEngine() Engine {
 			OriginalStatus:       true,
 			CustomHeaders:        true,
 		},
-		SleepDuration:      10,
-		RetrySleepDuration: 0, //30min
-		CrawlTimeout:       999999,
-		WaitForSelector:    nil,
-		ProxyStrategy:      ProxyStrategyConcurrency,
+		SleepDuration:          10,
+		RetrySleepDuration:     0, //30min
+		CrawlTimeout:           999999,
+		WaitForSelector:        nil,
+		WaitForSelectorVisible: nil,
+		ProxyStrategy:          ProxyStrategyConcurrency,
 		ErrorCodes: []int{
 			403,
 			407,
@@ -520,6 +521,9 @@ func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	}
 	if eng.OpenDevTools != nil {
 		defaultEngine.OpenDevTools = eng.OpenDevTools
+	}
+	if eng.WaitForSelectorVisible != nil {
+		defaultEngine.WaitForSelectorVisible = eng.WaitForSelectorVisible
 	}
 }
 

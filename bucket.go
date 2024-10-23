@@ -13,17 +13,16 @@ import (
 
 // uploadToBucket uploads a file to a Google Cloud Storage bucket.
 func uploadToBucket(app *Crawler, sourceFileName, destinationFileName string) {
-	bucketName := "gen_crawled_data_venturas_asia-northeast1"
+	bucketName := app.Config.EnvString("GCP_BUCKET_NAME")
 	googleApplicationCredentialsFileName := app.Config.EnvString("GCP_CREDENTIALS_PATH")
 
-	err := UploadToGCPBucket(app.Name, googleApplicationCredentialsFileName, sourceFileName, destinationFileName)
+	err := UploadToGCPBucket(app.Name, googleApplicationCredentialsFileName, bucketName, sourceFileName, destinationFileName)
 	if err != nil {
 		app.Logger.Error("Failed to upload file %s to bucket %s: %v", sourceFileName, bucketName, err)
 		return
 	}
 }
-func UploadToGCPBucket(dirName, GCP_CREDENTIALS_PATH, sourceFileName, destinationFileName string) error {
-	bucketName := "gen_crawled_data_venturas_asia-northeast1"
+func UploadToGCPBucket(dirName, GCP_CREDENTIALS_PATH, bucketName, sourceFileName, destinationFileName string) error {
 	destinationFileName = fmt.Sprintf("maker/%s/%s", dirName, destinationFileName)
 
 	if GCP_CREDENTIALS_PATH == "" {

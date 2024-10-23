@@ -199,7 +199,7 @@ func (app *Crawler) NavigateToURL(page playwright.Page, url string) (playwright.
 		_, err = page.WaitForSelector(selector, pageWaitForSelectorOptions)
 		if err != nil {
 			app.Logger.Html(app.getHtmlFromPage(page), url, fmt.Sprintf("Failed to find %s: %s", *app.engine.WaitForSelector, err.Error()))
-			return nil, nil, fmt.Errorf("failed to find %s: %w", app.engine.WaitForSelector, err)
+			return nil, nil, fmt.Errorf("failed to find %s: %w", *app.engine.WaitForSelector, err)
 		}
 	}
 

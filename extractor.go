@@ -177,11 +177,12 @@ func (app *Crawler) validateProductDetail(res *ProductDetail, processorConfig Pr
 	if !app.isLocalEnv {
 		err := app.submitProductData(res)
 		if err != nil {
-			app.Logger.Fatal("Failed to submit product data to API Server: %v", err)
-			err := app.MarkAsError(ctx.UrlCollection.Url, processorConfig.OriginCollection, err.Error())
-			if err != nil {
-				return err
+			app.Logger.Error("Failed to submit product data to API Server: %v", err)
+			errM := app.MarkAsError(ctx.UrlCollection.Url, processorConfig.OriginCollection, err.Error())
+			if errM != nil {
+				return errM
 			}
+			return err
 		}
 	}
 	return nil

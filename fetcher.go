@@ -9,7 +9,6 @@ import (
 )
 
 func (app *Crawler) handleCrawlWorker(processorConfig ProcessorConfig, urlCollection UrlCollection, proxy Proxy) (*CrawlerContext, error) {
-	var err error
 
 	crawlableUrl := urlCollection.Url
 	if urlCollection.ApiUrl != "" {
@@ -31,7 +30,7 @@ func (app *Crawler) handleCrawlWorker(processorConfig ProcessorConfig, urlCollec
 
 	navigationContext, navErr := app.navigateTo(ctx, crawlableUrl, processorConfig.OriginCollection, navigateToApi, proxy)
 	if navErr != nil {
-		return nil, err
+		return nil, navErr
 	}
 
 	crawlerCtx := app.getCrawlerCtx(navigationContext)

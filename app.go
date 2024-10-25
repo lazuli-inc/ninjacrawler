@@ -125,11 +125,11 @@ func (app *Crawler) Stop() {
 			app.HandlePanic(r)
 		}
 	}()
-	if app.pw != nil {
-		app.pw.Stop()
-	}
 	if app.httpClient != nil {
 		app.httpClient.CloseIdleConnections()
+	}
+	if app.pw != nil {
+		app.pw.Stop()
 	}
 	if app.Client != nil {
 		app.closeClient()
@@ -158,7 +158,14 @@ func (app *Crawler) openBrowsers(proxy Proxy) {
 	var err error
 	if *app.engine.IsDynamic {
 		if *app.engine.Adapter == PlayWrightEngine {
+			app.pw, err = app.GetPlaywright()
+			if err != nil {
+				app.Logger.Debug("failed to initialize playwright: %v\n", err)
+				app.Logger.Fatal("failed to initialize playwright: %v\n", err)
+				return // exit if playwright initialization fails
+			}
 			app.pwBrowserCtx, err = app.GetBrowser(app.pw, app.engine.BrowserType, proxy)
+
 		}
 		if *app.engine.Adapter == RodEngine {
 			app.rdBrowser, err = app.GetRodBrowser(proxy)
@@ -174,7 +181,16 @@ func (app *Crawler) openBrowsers(proxy Proxy) {
 func (app *Crawler) closeBrowsers() {
 	if *app.engine.IsDynamic {
 		if app.pwBrowserCtx != nil {
-			app.pwBrowserCtx.Close()
+			err := app.pwBrowserCtx.Close()
+			if err != nil {
+				app.Logger.Error("Failed to close browser: %v", err)
+				return
+			}
+			peErr := app.pw.Stop()
+			if peErr != nil {
+				app.Logger.Error("Failed to stop playwright: %v", peErr)
+				return
+			}
 		}
 		if app.rdBrowser != nil {
 			app.rdBrowser.Close()

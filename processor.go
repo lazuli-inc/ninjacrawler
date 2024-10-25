@@ -16,7 +16,6 @@ func (app *Crawler) Crawl(configs []ProcessorConfig) {
 	for _, config := range configs {
 		app.Logger.Summary("Starting: %s Crawler", config.OriginCollection)
 		app.overrideEngineDefaults(app.engine, &config.Engine)
-		app.toggleClient()
 
 		app.CurrentProcessorConfig = config
 		var total int32 = 0

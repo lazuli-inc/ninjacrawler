@@ -29,8 +29,8 @@ func (app *Crawler) handleCrawlWorker(processorConfig ProcessorConfig, urlCollec
 	ctx, cancel := context.WithTimeout(context.Background(), app.engine.Timeout*2)
 	defer cancel()
 
-	navigationContext, err := app.navigateTo(ctx, crawlableUrl, processorConfig.OriginCollection, navigateToApi, proxy)
-	if err != nil {
+	navigationContext, navErr := app.navigateTo(ctx, crawlableUrl, processorConfig.OriginCollection, navigateToApi, proxy)
+	if navErr != nil {
 		return nil, err
 	}
 

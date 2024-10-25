@@ -59,6 +59,7 @@ type Engine struct {
 type ProviderQueryOption struct {
 	JsRender             bool
 	UsePremiumProxyRetry bool
+	JsInstructions       bool
 	CustomHeaders        bool
 	PremiumProxy         bool
 	ProxyCountry         string
@@ -143,6 +144,9 @@ func (app *Crawler) BuildQueryString() string {
 
 	if app.engine.ProviderOption.JsRender {
 		params.Add("js_render", "true")
+	}
+	if app.engine.ProviderOption.JsInstructions {
+		params.Add("js_instructions", "js_instructions")
 	}
 	if app.engine.ProviderOption.CustomHeaders {
 		params.Add("custom_headers", "true")

@@ -81,7 +81,6 @@ func NewCrawler(name, url string, engines ...Engine) *Crawler {
 	crawler.userAgent = config.GetString("USER_AGENT")
 	crawler.preference = &defaultPreference
 	crawler.lastWorkingProxyIndex = int32(0)
-	crawler.engine.ProxyServers = crawler.getProxyServers()
 	return crawler
 }
 
@@ -101,6 +100,7 @@ func (app *Crawler) Start() {
 			return
 		}
 	}
+	app.syncProxies()
 	app.newSite()
 	app.toggleClient()
 }
@@ -116,6 +116,14 @@ func (app *Crawler) toggleClient() {
 		app.pw = pw
 	} else {
 		app.httpClient = app.GetHttpClient()
+	}
+}
+
+func (app *Crawler) syncProxies() {
+	if app.isLocalEnv {
+		app.engine.ProxyServers = app.getProxyServers()
+	} else {
+		app.engine.ProxyServers = app.getLiveProxyServers()
 	}
 }
 
@@ -543,6 +551,14 @@ func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	}
 }
 
+func (app *Crawler) getLiveProxyServers() []Proxy {
+	proxies, err := app.FetchProxy()
+	if err != nil {
+		app.Logger.Error("Error fetching proxies: %v", err)
+		return nil
+	}
+	return proxies
+}
 func (app *Crawler) getProxyServers() []Proxy {
 	proxies := app.Config.GetString("PROXY_SERVERS")
 	proxyUsername := app.Config.GetString("PROXY_USERNAME")

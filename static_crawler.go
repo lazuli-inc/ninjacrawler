@@ -144,6 +144,11 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 	resp, err := client.Do(req)
 	if err != nil {
 		if strings.Contains(err.Error(), "Proxy Authentication Required") {
+			stopErr := app.stopProxy(err.Error())
+			if stopErr != nil {
+				return nil, ContentType, stopErr
+			}
+			app.syncProxies()
 			return nil, ContentType, fmt.Errorf("isRetryable: Unexpected Error: %s", err.Error())
 		}
 		errMsg := fmt.Sprintf("failed to navigate %s", err.Error())

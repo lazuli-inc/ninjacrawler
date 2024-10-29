@@ -662,6 +662,89 @@ func (app *Crawler) StopCrawler() error {
 	}
 	return nil
 }
+func (app *Crawler) FetchProxy() ([]Proxy, error) {
+	var proxies []Proxy
+
+	// Only proceed if running on Google Compute Engine
+	if !metadata.OnGCE() {
+		return proxies, nil
+	}
+
+	// Prepare the API request URL
+	managerURL := fmt.Sprintf("%s/api/proxy/%s", app.Config.GetString("SERVER_IP"), app.Name)
+
+	// Create an HTTP client and request
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", managerURL, nil)
+	if err != nil {
+		return proxies, fmt.Errorf("request failed: %w", err)
+	}
+
+	// Send the request
+	response, err := client.Do(req)
+	if err != nil {
+		return proxies, fmt.Errorf("connection failed: %w", err)
+	}
+	defer response.Body.Close()
+
+	// Check for non-200 status codes
+	if response.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(response.Body)
+		return proxies, fmt.Errorf("API error status %d, body: %s", response.StatusCode, string(bodyBytes))
+	}
+
+	// Define a struct to parse the API response
+	var apiResponse struct {
+		Data    []Proxy `json:"data"`
+		Success bool    `json:"success"`
+	}
+
+	// Parse the JSON response
+	if err := json.NewDecoder(response.Body).Decode(&apiResponse); err != nil {
+		return proxies, fmt.Errorf("error decoding response: %w", err)
+	}
+
+	// Return the proxies if the response was successful
+	if apiResponse.Success {
+		return apiResponse.Data, nil
+	}
+
+	return proxies, fmt.Errorf("API response indicated failure")
+}
+
+func (app *Crawler) stopProxy(errStr string) error {
+	proxyIndex := int(atomic.LoadInt32(&app.lastWorkingProxyIndex))
+	proxy := app.engine.ProxyServers[proxyIndex]
+	// Only proceed if running on Google Compute Engine
+	if !metadata.OnGCE() {
+		return nil
+	}
+
+	// Prepare the API request URL
+	managerURL := fmt.Sprintf("%s/api/proxy/stop/%s", app.Config.GetString("SERVER_IP"), proxy.ID)
+
+	// Create an HTTP client and request
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", managerURL, nil)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+
+	// Send the request
+	response, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("connection failed: %w", err)
+	}
+	defer response.Body.Close()
+
+	// Check for non-200 status codes
+	if response.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(response.Body)
+		return fmt.Errorf("API error status %d, body: %s", response.StatusCode, string(bodyBytes))
+	}
+
+	return nil
+}
 
 func (app *Crawler) handleHttpError(statusCode int, statusText string, url string, data interface{}) error {
 
@@ -690,6 +773,11 @@ func (app *Crawler) handleHttpError(statusCode int, statusText string, url strin
 }
 func (app *Crawler) handleProxyError(err error) (*goquery.Document, error) {
 	if strings.Contains(err.Error(), "net::ERR_HTTP_RESPONSE_CODE_FAILURE") || strings.Contains(err.Error(), "net::ERR_INVALID_AUTH_CREDENTIALS") {
+		stopErr := app.stopProxy(err.Error())
+		if stopErr != nil {
+			return nil, stopErr
+		}
+		app.syncProxies()
 		return nil, fmt.Errorf("isRetryable: Unexpected Error: %s", err.Error())
 	}
 	return nil, fmt.Errorf("failed to navigate %s", err.Error())

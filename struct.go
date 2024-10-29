@@ -51,6 +51,7 @@ type Handler struct {
 	ProductHandler func(c *Crawler)
 }
 type Proxy struct {
+	ID       string
 	Server   string
 	Username string
 	Password string

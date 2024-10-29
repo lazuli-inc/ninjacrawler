@@ -11,9 +11,12 @@ func (app *Crawler) Navigate(url string) (*NavigationContext, error) {
 
 	proxy := app.getCurrentProxy()
 	if shouldRotateProxy {
+		if len(app.engine.ProxyServers) == 0 && app.engine.ProxyStrategy == ProxyStrategyRotation {
+			app.Logger.Fatal("No proxies provided for rotation")
+		}
 		proxyIndex := int(atomic.LoadInt32(&app.lastWorkingProxyIndex))
 		proxyIndex = (proxyIndex + 1) % len(app.engine.ProxyServers)
-		app.Logger.Summary("Error with proxy %s: Retrying with proxy: %s", app.engine.ProxyServers[atomic.LoadInt32(&app.lastWorkingProxyIndex)].Server, app.engine.ProxyServers[proxyIndex].Server)
+		app.Logger.Summary("Error with proxy Retrying with proxy: %s", app.engine.ProxyServers[proxyIndex].Server)
 		shouldRotateProxy = false
 		proxy = app.engine.ProxyServers[proxyIndex]
 

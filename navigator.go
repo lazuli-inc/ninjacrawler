@@ -34,7 +34,6 @@ func (app *Crawler) Navigate(url string) (*NavigationContext, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), app.engine.Timeout*2)
 	defer cancel()
 	navigationContext, err := app.navigateTo(ctx, url, "DeepLink", false, proxy)
-	defer app.closePages(*app.getCrawlerCtx(navigationContext))
 	if err != nil {
 		if strings.Contains(err.Error(), "StatusCode:404") {
 			return nil, err
@@ -59,5 +58,7 @@ func (app *Crawler) Navigate(url string) (*NavigationContext, error) {
 			return nil, err
 		}
 	}
+
+	app.closePages(*app.getCrawlerCtx(navigationContext))
 	return navigationContext, nil
 }

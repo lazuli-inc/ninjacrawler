@@ -115,6 +115,7 @@ func (app *Crawler) processUrlsWithProxies(urls []UrlCollection, config Processo
 		//if atomic.LoadInt32(&batchCount)%2 == 0 {
 		//	shouldRotateProxy = true
 		//}
+
 	}
 
 	return shouldContinue
@@ -122,7 +123,9 @@ func (app *Crawler) processUrlsWithProxies(urls []UrlCollection, config Processo
 func (app *Crawler) getProxy(batchCount int, proxies []Proxy, proxyLock *sync.Mutex) Proxy {
 	proxyLock.Lock()
 	defer proxyLock.Unlock()
-
+	if len(app.engine.ProxyServers) == 0 && app.engine.ProxyStrategy == ProxyStrategyRotation {
+		app.Logger.Fatal("No proxies provided for rotation")
+	}
 	if len(proxies) == 0 {
 		return Proxy{}
 	}

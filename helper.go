@@ -714,11 +714,7 @@ func (app *Crawler) FetchProxy() ([]Proxy, error) {
 }
 
 func (app *Crawler) stopProxy(errStr string) error {
-	proxyIndex := int(atomic.LoadInt32(&app.lastWorkingProxyIndex))
-	if len(app.engine.ProxyServers) == 0 {
-		app.Logger.Fatal("No Active proxy servers found")
-	}
-	proxy := app.engine.ProxyServers[proxyIndex]
+	proxy := app.getCurrentProxy()
 	// Only proceed if running on Google Compute Engine
 	if !metadata.OnGCE() {
 		return nil
@@ -806,8 +802,13 @@ func (app *Crawler) getCurrentProxy() Proxy {
 	locker.Lock()
 	defer locker.Unlock()
 	proxy := Proxy{}
+	if len(app.engine.ProxyServers) == 0 && app.engine.ProxyStrategy == ProxyStrategyRotation {
+		app.Logger.Fatal("No Active proxy servers found")
+	}
+
 	if len(app.engine.ProxyServers) > 0 {
-		proxy = app.engine.ProxyServers[atomic.LoadInt32(&app.CurrentProxyIndex)]
+		index := atomic.LoadInt32(&app.CurrentProxyIndex) % int32(len(app.engine.ProxyServers))
+		proxy = app.engine.ProxyServers[index]
 	}
 	return proxy
 }

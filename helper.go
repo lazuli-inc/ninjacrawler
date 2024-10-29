@@ -673,6 +673,7 @@ func (app *Crawler) FetchProxy() ([]Proxy, error) {
 	// Prepare the API request URL
 	managerURL := fmt.Sprintf("%s/api/proxy/%s", app.Config.GetString("SERVER_IP"), app.Name)
 
+	app.Logger.Debug("Fetching proxies from %s", managerURL)
 	// Create an HTTP client and request
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", managerURL, nil)

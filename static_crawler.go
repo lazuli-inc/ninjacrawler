@@ -143,28 +143,20 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 
 	resp, err := client.Do(req)
 	if err != nil {
-		if strings.Contains(err.Error(), "Proxy Authentication Required") {
-			stopErr := app.stopProxy(proxyServer, err.Error())
-			if stopErr != nil {
-				return nil, ContentType, stopErr
-			}
-			app.syncProxies()
-			return nil, ContentType, fmt.Errorf("isRetryable: Unexpected Error: %s", err.Error())
-		}
 		errMsg := fmt.Sprintf("failed to navigate %s", err.Error())
 		if strings.Contains(err.Error(), "Client.Timeout") {
 			_ = app.updateStatusCode(originalUrl, 408)
+			return nil, ContentType, fmt.Errorf(errMsg)
 		}
 		if strings.Contains(err.Error(), "Too Many Requests") {
 			if inArray(app.engine.ErrorCodes, 429) {
 				errMsg = fmt.Sprintf("isRetryable : Too Many Requests: %v", err)
 			}
 			_ = app.updateStatusCode(originalUrl, 429)
-			if app.engine.RetrySleepDuration > 0 {
-				//app.HandleThrottling(1, 429)
-			}
+			return nil, ContentType, fmt.Errorf(errMsg)
 		}
-		return nil, ContentType, fmt.Errorf(errMsg)
+		_, e := app.handleProxyError(proxyServer, err)
+		return nil, ContentType, e
 	}
 	defer resp.Body.Close()
 

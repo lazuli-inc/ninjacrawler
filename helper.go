@@ -777,7 +777,11 @@ func (app *Crawler) handleHttpError(statusCode int, statusText string, url strin
 	return fmt.Errorf(msg)
 }
 func (app *Crawler) handleProxyError(proxy Proxy, err error) (*goquery.Document, error) {
-	if strings.Contains(err.Error(), "net::ERR_HTTP_RESPONSE_CODE_FAILURE") || strings.Contains(err.Error(), "net::ERR_INVALID_AUTH_CREDENTIALS") {
+	if strings.Contains(err.Error(), "net::ERR_HTTP_RESPONSE_CODE_FAILURE") ||
+		strings.Contains(err.Error(), "net::ERR_INVALID_AUTH_CREDENTIALS") ||
+		strings.Contains(err.Error(), "Proxy Authentication Required") ||
+		strings.Contains(err.Error(), "Could not connect to proxy server") ||
+		strings.Contains(err.Error(), "NS_ERROR_PROXY_CONNECTION_REFUSED") {
 		stopErr := app.stopProxy(proxy, err.Error())
 		if stopErr != nil {
 			return nil, stopErr

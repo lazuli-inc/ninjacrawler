@@ -666,11 +666,6 @@ func (app *Crawler) StopCrawler() error {
 func (app *Crawler) FetchProxy() ([]Proxy, error) {
 	var proxies []Proxy
 
-	// Only proceed if running on Google Compute Engine
-	if !metadata.OnGCE() {
-		return proxies, nil
-	}
-
 	// Prepare the API request URL
 	managerURL := fmt.Sprintf("%s/api/proxy/%s", app.Config.GetString("SERVER_IP"), app.Name)
 
@@ -716,11 +711,6 @@ func (app *Crawler) FetchProxy() ([]Proxy, error) {
 
 func (app *Crawler) stopProxy(proxy Proxy, errStr string) error {
 	app.Logger.Debug("Stopping proxy: %s", errStr)
-	//proxy := app.getCurrentProxy()
-	// Only proceed if running on Google Compute Engine
-	if !metadata.OnGCE() {
-		return nil
-	}
 
 	// Prepare the API request URL
 	managerURL := fmt.Sprintf("%s/api/proxy/stop", app.Config.GetString("SERVER_IP"))
@@ -948,7 +938,7 @@ func setChromiumHeaders(opts *playwright.BrowserNewContextOptions, browser playw
 
 func setFirefoxHeaders(opts *playwright.BrowserNewContextOptions, browser playwright.Browser) {
 	version := extractMajorVersion(browser.Version())
-	opts.ExtraHttpHeaders["User-Agent"] = fmt.Sprintf("Mozilla/5.0 (X11; Linux x86_64; rv:%s) Gecko/20100101 Firefox/%s", version, version)
+	opts.ExtraHttpHeaders["User-Agent"] = fmt.Sprintf("Mozilla/5.0 (X11 Ubuntu; Linux x86_64; rv:%s) Gecko/20100101 Firefox/%s", version, version)
 }
 
 func setWebKitHeaders(opts *playwright.BrowserNewContextOptions, browser playwright.Browser) {

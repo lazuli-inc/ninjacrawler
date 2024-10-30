@@ -100,6 +100,13 @@ func (app *Crawler) Start() {
 			return
 		}
 	}
+	if (app.engine.ForceInstallPlaywright || !app.isLocalEnv) && *app.engine.Adapter == PlayWrightEngine {
+		app.Logger.Info("Force Installing Playwright!")
+		err := playwright.Install()
+		if err != nil {
+			return
+		}
+	}
 	app.syncProxies()
 	app.newSite()
 	app.toggleClient()

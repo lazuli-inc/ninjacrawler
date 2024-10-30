@@ -938,3 +938,24 @@ func handleCookieConsent(page interface{}, action *CookieAction) error {
 	}
 	return clickConsentButton(page, action)
 }
+
+// Helper functions for setting user-agent and Sec-CH-UA headers
+func setChromiumHeaders(opts *playwright.BrowserNewContextOptions, browser playwright.Browser) {
+	version := extractMajorVersion(browser.Version())
+	opts.ExtraHttpHeaders["User-Agent"] = fmt.Sprintf("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36", version)
+	opts.ExtraHttpHeaders["Sec-Ch-Ua"] = fmt.Sprintf("\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"%s\", \"Google Chrome\";v=\"%s\"", version, version)
+}
+
+func setFirefoxHeaders(opts *playwright.BrowserNewContextOptions, browser playwright.Browser) {
+	version := extractMajorVersion(browser.Version())
+	opts.ExtraHttpHeaders["User-Agent"] = fmt.Sprintf("Mozilla/5.0 (X11; Linux x86_64; rv:%s) Gecko/20100101 Firefox/%s", version, version)
+}
+
+func setWebKitHeaders(opts *playwright.BrowserNewContextOptions, browser playwright.Browser) {
+	version := extractMajorVersion(browser.Version())
+	opts.ExtraHttpHeaders["User-Agent"] = fmt.Sprintf("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/%s Safari/605.1.15", version)
+}
+
+func extractMajorVersion(version string) string {
+	return strings.Split(version, ".")[0]
+}

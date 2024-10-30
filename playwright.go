@@ -9,13 +9,6 @@ import (
 // GetPlaywright initializes and runs the Playwright framework.
 // It returns a Playwright instance if successful, otherwise returns an error.
 func (app *Crawler) GetPlaywright() (*playwright.Playwright, error) {
-	if app.engine.ForceInstallPlaywright || !app.isLocalEnv {
-		app.Logger.Info("Force Installing Playwright!")
-		err := playwright.Install()
-		if err != nil {
-			return nil, err
-		}
-	}
 	pw, err := playwright.Run()
 	if err != nil {
 		return nil, err
@@ -90,31 +83,41 @@ func (app *Crawler) GetBrowserPage(pw *playwright.Playwright, browserType string
 	return browser, page, nil
 }
 func (app *Crawler) GetBrowser(pw *playwright.Playwright, browserType string, proxy Proxy) (playwright.BrowserContext, error) {
-	var browser playwright.Browser
-	var err error
+	var (
+		browser               playwright.Browser
+		err                   error
+		browserTypeLaunchOpts = playwright.BrowserTypeLaunchOptions{
+			Headless: playwright.Bool(!app.isLocalEnv),
+			Devtools: playwright.Bool(app.isLocalEnv),
+			Args:     app.engine.Args,
+		}
+		contextOpts = playwright.BrowserNewContextOptions{
+			ExtraHttpHeaders: map[string]string{
+				"Accept-Language": "ja-JP,ja;q=0.9",
+			},
+		}
+	)
 
-	var browserTypeLaunchOptions playwright.BrowserTypeLaunchOptions
-	browserTypeLaunchOptions.Headless = playwright.Bool(!app.isLocalEnv)
-	browserTypeLaunchOptions.Devtools = playwright.Bool(app.isLocalEnv)
-	// Set additional launch arguments
-	if len(app.engine.Args) > 0 {
-		browserTypeLaunchOptions.Args = app.engine.Args
-	}
+	// Set proxy options if available
 	if len(app.engine.ProxyServers) > 0 && proxy.Server != "" {
-		// Set Proxy options
-		browserTypeLaunchOptions.Proxy = &playwright.Proxy{
+		browserTypeLaunchOpts.Proxy = &playwright.Proxy{
 			Server:   proxy.Server,
 			Username: playwright.String(proxy.Username),
 			Password: playwright.String(proxy.Password),
 		}
 	}
+
+	// Launch the appropriate browser and configure user-agent headers
 	switch browserType {
 	case "chromium":
-		browser, err = pw.Chromium.Launch(browserTypeLaunchOptions)
+		browser, err = pw.Chromium.Launch(browserTypeLaunchOpts)
+		setChromiumHeaders(&contextOpts, browser)
 	case "firefox":
-		browser, err = pw.Firefox.Launch(browserTypeLaunchOptions)
+		browser, err = pw.Firefox.Launch(browserTypeLaunchOpts)
+		setFirefoxHeaders(&contextOpts, browser)
 	case "webkit":
-		browser, err = pw.WebKit.Launch(browserTypeLaunchOptions)
+		browser, err = pw.WebKit.Launch(browserTypeLaunchOpts)
+		setWebKitHeaders(&contextOpts, browser)
 	default:
 		return nil, fmt.Errorf("unsupported browser type: %s", browserType)
 	}
@@ -122,11 +125,14 @@ func (app *Crawler) GetBrowser(pw *playwright.Playwright, browserType string, pr
 	if err != nil {
 		return nil, fmt.Errorf("failed to launch browser: %w", err)
 	}
-	context, err := browser.NewContext(playwright.BrowserNewContextOptions{
-		UserAgent: playwright.String(app.userAgent),
-	})
+
+	// Overwrite the default User-Agent header
+	if app.userAgent != "" {
+		contextOpts.ExtraHttpHeaders["User-Agent"] = app.userAgent
+	}
+	context, err := browser.NewContext(contextOpts)
 	if err != nil {
-		return nil, fmt.Errorf("could not create new browser context: %v", err)
+		return nil, fmt.Errorf("could not create new browser context: %w", err)
 	}
 	return context, nil
 }

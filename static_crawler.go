@@ -144,7 +144,7 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 	resp, err := client.Do(req)
 	if err != nil {
 		if strings.Contains(err.Error(), "Proxy Authentication Required") {
-			stopErr := app.stopProxy(err.Error())
+			stopErr := app.stopProxy(proxyServer, err.Error())
 			if stopErr != nil {
 				return nil, ContentType, stopErr
 			}

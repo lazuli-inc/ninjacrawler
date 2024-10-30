@@ -1,6 +1,7 @@
 package ninjacrawler
 
 import (
+	"bytes"
 	"cloud.google.com/go/compute/metadata"
 	"context"
 	"crypto/sha1"
@@ -713,22 +714,36 @@ func (app *Crawler) FetchProxy() ([]Proxy, error) {
 	return proxies, fmt.Errorf("API response indicated failure")
 }
 
-func (app *Crawler) stopProxy(errStr string) error {
-	proxy := app.getCurrentProxy()
+func (app *Crawler) stopProxy(proxy Proxy, errStr string) error {
+	app.Logger.Debug("Stopping proxy: %s", errStr)
+	//proxy := app.getCurrentProxy()
 	// Only proceed if running on Google Compute Engine
 	if !metadata.OnGCE() {
 		return nil
 	}
 
 	// Prepare the API request URL
-	managerURL := fmt.Sprintf("%s/api/proxy/stop/%s", app.Config.GetString("SERVER_IP"), proxy.ID)
+	managerURL := fmt.Sprintf("%s/api/proxy/stop", app.Config.GetString("SERVER_IP"))
+
+	// Prepare the payload with proxy and error message
+	payload := map[string]interface{}{
+		"proxy": proxy,
+		"error": errStr,
+	}
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
 
 	// Create an HTTP client and request
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", managerURL, nil)
+	req, err := http.NewRequest("POST", managerURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("request failed: %w", err)
+		return fmt.Errorf("request creation failed: %w", err)
 	}
+
+	// Set headers for JSON content
+	req.Header.Set("Content-Type", "application/json")
 
 	// Send the request
 	response, err := client.Do(req)
@@ -771,9 +786,9 @@ func (app *Crawler) handleHttpError(statusCode int, statusText string, url strin
 	app.Logger.Html(htmlStr, url, msg)
 	return fmt.Errorf(msg)
 }
-func (app *Crawler) handleProxyError(err error) (*goquery.Document, error) {
+func (app *Crawler) handleProxyError(proxy Proxy, err error) (*goquery.Document, error) {
 	if strings.Contains(err.Error(), "net::ERR_HTTP_RESPONSE_CODE_FAILURE") || strings.Contains(err.Error(), "net::ERR_INVALID_AUTH_CREDENTIALS") {
-		stopErr := app.stopProxy(err.Error())
+		stopErr := app.stopProxy(proxy, err.Error())
 		if stopErr != nil {
 			return nil, stopErr
 		}

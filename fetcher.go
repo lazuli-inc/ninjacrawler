@@ -85,10 +85,10 @@ func (app *Crawler) navigateTo(ctx context.Context, crawlableUrl string, origin 
 	if *app.engine.IsDynamic {
 		switch *app.engine.Adapter {
 		case PlayWrightEngine:
-			pwPage, doc, err = app.NavigateToURL(app.pwPage, crawlableUrl)
+			pwPage, doc, err = app.NavigateToURL(app.pwPage, crawlableUrl, currentProxy)
 			response = pwPage
 		case RodEngine:
-			rdPage, doc, err = app.NavigateRodURL(app.rdPage, crawlableUrl)
+			rdPage, doc, err = app.NavigateRodURL(app.rdPage, crawlableUrl, currentProxy)
 			response = rdPage
 		default:
 			return nil, fmt.Errorf("unsupported engine adapter: %v", *app.engine.Adapter)

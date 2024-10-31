@@ -61,6 +61,7 @@ type FormInput struct {
 	Val string
 }
 type CookieAction struct {
+	Selector                    string
 	ButtonText                  string
 	MustHaveSelectorAfterAction string
 	Fields                      []FormInput

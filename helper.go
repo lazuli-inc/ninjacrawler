@@ -901,27 +901,61 @@ func fillConsentFields(page interface{}, action *CookieAction) error {
 
 // Helper function to click the cookie consent button
 func clickConsentButton(page interface{}, action *CookieAction) error {
-	if action == nil || action.ButtonText == "" {
+	if action == nil || (action.Selector == "" && action.ButtonText == "") {
 		return nil
 	}
 
-	buttonSelector := fmt.Sprintf("button:has-text('%s')", action.ButtonText)
+	// Determine the selector to use: `action.Selector` takes precedence over `action.ButtonText`.
+	var buttonSelector string
+	if action.Selector != "" {
+		buttonSelector = action.Selector
+	} else {
+		buttonSelector = fmt.Sprintf("button:has-text('%s')", action.ButtonText)
+	}
+
 	switch p := page.(type) {
 	case playwright.Page:
-		p.WaitForSelector(buttonSelector)
-		button, err := p.QuerySelector(buttonSelector)
-		if err == nil && button != nil {
-			err = button.Click()
-			if err != nil {
-				return fmt.Errorf("failed to click cookie consent button: %w", err)
-			}
-			p.WaitForSelector(action.MustHaveSelectorAfterAction)
+		// Wait for the button to appear using the chosen selector
+		if _, err := p.WaitForSelector(buttonSelector); err != nil {
+			return fmt.Errorf("failed to find button selector %s: %w", buttonSelector, err)
 		}
+
+		// Query for the button and attempt to click it
+		button, err := p.QuerySelector(buttonSelector)
+		if err != nil || button == nil {
+			return fmt.Errorf("failed to find or click cookie consent button: %w", err)
+		}
+		if err := button.Click(); err != nil {
+			return fmt.Errorf("failed to click cookie consent button: %w", err)
+		}
+
+		// Wait for the next element after clicking
+		if action.MustHaveSelectorAfterAction != "" {
+			if _, err := p.WaitForSelector(action.MustHaveSelectorAfterAction); err != nil {
+				return fmt.Errorf("failed waiting for post-action selector: %w", err)
+			}
+		}
+
 	case *rod.Page:
-		button := p.MustElementR("button", action.ButtonText)
+		// Locate the button using the selector or text and click
+		var button *rod.Element
+		if action.Selector != "" {
+			button = p.MustElement(action.Selector)
+		} else {
+			button = p.MustElementR("button", action.ButtonText)
+		}
+		if button == nil {
+			return fmt.Errorf("failed to find button with selector/text: %s", buttonSelector)
+		}
 		button.MustClick()
+
+		// Wait for the page to load after clicking
 		p.MustWaitLoad()
+
+	default:
+		return fmt.Errorf("unsupported page type: %T", p)
 	}
+
 	return nil
 }
 

@@ -137,8 +137,12 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 	if err != nil {
 		return nil, ContentType, fmt.Errorf("Failed to create request: %v", err)
 	}
-
-	req.Header.Set("User-Agent", app.userAgent)
+	userAgent := "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+	// Overwrite the default User-Agent header
+	if app.userAgent != "" {
+		userAgent = app.userAgent
+	}
+	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Referer", app.BaseUrl)
 
 	resp, err := client.Do(req)

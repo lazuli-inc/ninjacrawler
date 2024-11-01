@@ -375,6 +375,7 @@ func getDefaultEngine() Engine {
 		Adapter:                 String(PlayWrightEngine),
 		SimulateMouse:           Bool(false),
 		OpenDevTools:            Bool(false),
+		TrackRedirection:        Bool(false),
 	}
 }
 
@@ -555,6 +556,9 @@ func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	}
 	if eng.WaitForSelectorVisible != nil {
 		defaultEngine.WaitForSelectorVisible = eng.WaitForSelectorVisible
+	}
+	if eng.TrackRedirection != nil {
+		defaultEngine.TrackRedirection = eng.TrackRedirection
 	}
 }
 

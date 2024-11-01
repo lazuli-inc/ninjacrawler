@@ -169,12 +169,15 @@ func (app *Crawler) GetPage(context playwright.BrowserContext) (playwright.Page,
 // It waits until the page is fully loaded, handles cookie consent, and returns a goquery document representing the DOM.
 // If navigation or handling consent fails, it logs the page content to a file and returns an error.
 func (app *Crawler) NavigateToURL(page playwright.Page, url string, proxy Proxy) (playwright.Page, *goquery.Document, error) {
+	originalURL := url // Store the original URL for comparison
 	pageGotoOptions := playwright.PageGotoOptions{
 		Timeout: playwright.Float(float64(app.engine.Timeout.Milliseconds())),
 	}
 	if app.engine.WaitForDynamicRendering && app.engine.WaitForSelector == nil {
 		pageGotoOptions.WaitUntil = playwright.WaitUntilStateNetworkidle
 	}
+
+	// Navigate to the URL
 	res, err := page.Goto(url, pageGotoOptions)
 	if err != nil {
 		d, e := app.handleProxyError(proxy, err)
@@ -182,6 +185,14 @@ func (app *Crawler) NavigateToURL(page playwright.Page, url string, proxy Proxy)
 	}
 	if !res.Ok() {
 		return nil, nil, app.handleHttpError(res.Status(), res.StatusText(), url, page)
+	}
+
+	// Check for redirection
+	finalURL := page.URL()
+	if originalURL != finalURL && *app.engine.TrackRedirection {
+		app.CurrentUrl = finalURL
+		_ = app.updateRedirection(originalURL, finalURL)
+		app.Logger.Warn(fmt.Sprintf("Redirection detected: %s -> %s", originalURL, finalURL))
 	}
 
 	// Handle mouse simulation, if applicable

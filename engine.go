@@ -55,6 +55,7 @@ type Engine struct {
 	SendHtmlToBigquery     *bool
 	SimulateMouse          *bool
 	OpenDevTools           *bool
+	TrackRedirection       *bool
 }
 type ProviderQueryOption struct {
 	JsRender             bool

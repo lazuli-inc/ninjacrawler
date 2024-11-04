@@ -234,7 +234,7 @@ func (app *Crawler) NavigateToURL(page playwright.Page, url string, proxy Proxy)
 	if app.engine.SendHtmlToBigquery != nil && *app.engine.SendHtmlToBigquery {
 		sendErr := app.SendHtmlToBigquery(document, url)
 		if sendErr != nil {
-			app.Logger.Fatal("SendHtmlToBigquery Error: %s", sendErr.Error())
+			app.Logger.Error("SendHtmlToBigquery Error: %s", sendErr.Error())
 		}
 	}
 	if *app.engine.StoreHtml {

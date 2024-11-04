@@ -618,6 +618,10 @@ func (app *Crawler) SendHtmlToBigquery(data interface{}, urlString string) error
 	if metadata.OnGCE() {
 		bigqueryErr := app.sendHtmlToBigquery(htmlContent, urlString)
 		if bigqueryErr != nil {
+			bigErr := app.markAsBigQueryFailed(urlString, bigqueryErr.Error())
+			if bigErr != nil {
+				return bigErr
+			}
 			return bigqueryErr
 
 		}

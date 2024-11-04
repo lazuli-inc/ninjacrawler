@@ -296,6 +296,26 @@ func (app *Crawler) markAsComplete(url string, dbCollection string) error {
 	}
 	return nil
 }
+func (app *Crawler) markAsBigQueryFailed(url string, errStr string) error {
+
+	timeNow := time.Now()
+
+	collection := app.getCollection(app.CurrentCollection)
+
+	filter := bson.D{{Key: "url", Value: url}}
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "bigquery_error", Value: errStr},
+			{Key: "updated_at", Value: &timeNow},
+		}},
+	}
+
+	_, err := collection.UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		return fmt.Errorf("[:%s:%s] could markAsBigQueryFailed: Please check this [Error]: %v", app.CurrentCollection, url, err)
+	}
+	return nil
+}
 func (app *Crawler) SyncCurrentPageUrl(url, currentPageUrl string, dbCollection string) error {
 
 	timeNow := time.Now()

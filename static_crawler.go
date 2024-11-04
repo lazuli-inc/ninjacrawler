@@ -42,7 +42,7 @@ func (app *Crawler) NavigateToStaticURL(client *http.Client, urlString string, p
 	if app.engine.SendHtmlToBigquery != nil && *app.engine.SendHtmlToBigquery {
 		sendErr := app.SendHtmlToBigquery(document, urlString)
 		if sendErr != nil {
-			app.Logger.Fatal("SendHtmlToBigquery Error: %s", sendErr.Error())
+			app.Logger.Error("SendHtmlToBigquery Error: %s", sendErr.Error())
 		}
 	}
 

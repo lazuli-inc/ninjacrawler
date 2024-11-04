@@ -118,7 +118,7 @@ func (app *Crawler) NavigateRodURL(page *rod.Page, url string, proxy Proxy) (*ro
 	if app.engine.SendHtmlToBigquery != nil && *app.engine.SendHtmlToBigquery {
 		sendErr := app.SendHtmlToBigquery(document, url)
 		if sendErr != nil {
-			app.Logger.Fatal("SendHtmlToBigquery Error: %s", sendErr.Error())
+			app.Logger.Error("SendHtmlToBigquery Error: %s", sendErr.Error())
 		}
 	}
 	if *app.engine.StoreHtml {

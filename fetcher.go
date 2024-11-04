@@ -8,7 +8,7 @@ import (
 	"github.com/playwright-community/playwright-go"
 )
 
-func (app *Crawler) handleCrawlWorker(processorConfig ProcessorConfig, urlCollection UrlCollection, proxy Proxy) (*CrawlerContext, error) {
+func (app *Crawler) handleCrawlWorker(page interface{}, processorConfig ProcessorConfig, urlCollection UrlCollection, proxy Proxy) (*CrawlerContext, error) {
 
 	crawlableUrl := urlCollection.Url
 	if urlCollection.ApiUrl != "" {
@@ -28,7 +28,7 @@ func (app *Crawler) handleCrawlWorker(processorConfig ProcessorConfig, urlCollec
 	ctx, cancel := context.WithTimeout(context.Background(), app.engine.Timeout*2)
 	defer cancel()
 
-	navigationContext, navErr := app.navigateTo(ctx, crawlableUrl, processorConfig.OriginCollection, navigateToApi, proxy)
+	navigationContext, navErr := app.navigateTo(ctx, page, crawlableUrl, processorConfig.OriginCollection, navigateToApi, proxy)
 	if navErr != nil {
 		return nil, navErr
 	}
@@ -56,7 +56,7 @@ func (app *Crawler) getCrawlerCtx(navigationContext *NavigationContext) *Crawler
 	}
 	return crawlerCtx
 }
-func (app *Crawler) navigateTo(ctx context.Context, crawlableUrl string, origin string, navigateToApi bool, currentProxy Proxy) (*NavigationContext, error) {
+func (app *Crawler) navigateTo(ctx context.Context, page interface{}, crawlableUrl string, origin string, navigateToApi bool, currentProxy Proxy) (*NavigationContext, error) {
 	var (
 		err      error
 		doc      *goquery.Document
@@ -71,7 +71,9 @@ func (app *Crawler) navigateTo(ctx context.Context, crawlableUrl string, origin 
 	} else {
 		app.Logger.Info("Crawling %s: %s", origin, crawlableUrl)
 	}
-
+	if page == nil {
+		return nil, fmt.Errorf("page is nil")
+	}
 	// Check if the context is already done (canceled or timed out)
 	select {
 	case <-ctx.Done():
@@ -85,10 +87,10 @@ func (app *Crawler) navigateTo(ctx context.Context, crawlableUrl string, origin 
 	if *app.engine.IsDynamic {
 		switch *app.engine.Adapter {
 		case PlayWrightEngine:
-			pwPage, doc, err = app.NavigateToURL(app.pwPage, crawlableUrl, currentProxy)
+			pwPage, doc, err = app.NavigateToURL(page, crawlableUrl, currentProxy)
 			response = pwPage
 		case RodEngine:
-			rdPage, doc, err = app.NavigateRodURL(app.rdPage, crawlableUrl, currentProxy)
+			rdPage, doc, err = app.NavigateRodURL(page, crawlableUrl, currentProxy)
 			response = rdPage
 		default:
 			return nil, fmt.Errorf("unsupported engine adapter: %v", *app.engine.Adapter)

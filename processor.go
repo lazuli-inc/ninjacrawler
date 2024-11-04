@@ -94,9 +94,9 @@ func (app *Crawler) processUrlsWithProxies(urls []UrlCollection, config Processo
 				app.CurrentCollection = config.OriginCollection
 				app.CurrentUrlCollection = urlCollection
 				//app.assignProxy(proxy)
-				app.openPages()
+				page := app.openPages()
 				proxyLock.Unlock()
-				ok := app.crawlWithProxies(urlCollection, config, 0, proxy)
+				ok := app.crawlWithProxies(page, urlCollection, config, 0, proxy)
 				if ok && crawlLimit > 0 && atomic.AddInt32(total, 1) > int32(crawlLimit) {
 					atomic.AddInt32(total, -1)
 					shouldContinue = false
@@ -169,14 +169,14 @@ func (app *Crawler) assignProxy(proxy Proxy) {
 	}
 }
 
-func (app *Crawler) crawlWithProxies(urlCollection UrlCollection, config ProcessorConfig, attempt int, proxy Proxy) bool {
+func (app *Crawler) crawlWithProxies(page interface{}, urlCollection UrlCollection, config ProcessorConfig, attempt int, proxy Proxy) bool {
 	//fmt.Println("CurrentProxyIndex", atomic.LoadInt32(&app.CurrentProxyIndex))
 	if app.runPreHandlers(config, urlCollection) {
-		ctx, err := app.handleCrawlWorker(config, urlCollection, proxy)
+		ctx, err := app.handleCrawlWorker(page, config, urlCollection, proxy)
 		if err != nil {
 			return app.handleCrawlError(err, urlCollection, config, attempt)
 		}
-		errExtract := app.extract(config, *ctx)
+		errExtract := app.extract(page, config, *ctx)
 		if errExtract != nil {
 			if strings.Contains(errExtract.Error(), "isRetryable") {
 				return app.rotateProxy(errExtract, attempt)

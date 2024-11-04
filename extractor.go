@@ -2,11 +2,13 @@ package ninjacrawler
 
 import (
 	"fmt"
+	"github.com/go-rod/rod"
+	"github.com/playwright-community/playwright-go"
 	"strings"
 )
 
-func (app *Crawler) extract(processorConfig ProcessorConfig, ctx CrawlerContext) error {
-	defer app.closePages(ctx)
+func (app *Crawler) extract(page interface{}, processorConfig ProcessorConfig, ctx CrawlerContext) error {
+	defer app.closePages(page)
 	if processorConfig.StateHandler != nil {
 		data := processorConfig.StateHandler(ctx)
 		ctx.State = data
@@ -188,16 +190,20 @@ func (app *Crawler) validateProductDetail(res *ProductDetail, processorConfig Pr
 	return nil
 }
 
-func (app *Crawler) closePages(ctx CrawlerContext) {
+func (app *Crawler) closePages(pageInterFace interface{}) {
 	if *app.engine.IsDynamic {
 		if *app.engine.Adapter == PlayWrightEngine {
-			err := ctx.Page.Close()
+			var page playwright.Page
+			page = pageInterFace.(playwright.Page)
+			err := page.Close()
 			if err != nil {
 				app.Logger.Error("Failed to close page: %v", err)
 				return
 			}
 		} else {
-			err := ctx.RodPage.Close()
+			var page *rod.Page
+			page = pageInterFace.(*rod.Page)
+			err := page.Close()
 			if err != nil {
 				app.Logger.Error("Failed to close page: %v", err)
 				return

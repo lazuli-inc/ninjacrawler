@@ -23,15 +23,15 @@ const (
 
 type Crawler struct {
 	*mongo.Client
-	Config                 *configService
-	Name                   string
-	Url                    string
-	BaseUrl                string
-	pw                     *playwright.Playwright
-	pwBrowserCtx           playwright.BrowserContext
-	pwPage                 playwright.Page
-	rdBrowser              *rod.Browser
-	rdPage                 *rod.Page
+	Config       *configService
+	Name         string
+	Url          string
+	BaseUrl      string
+	pw           *playwright.Playwright
+	pwBrowserCtx playwright.BrowserContext
+	//pwPage                 playwright.Page
+	rdBrowser *rod.Browser
+	//rdPage                 *rod.Page
 	UrlSelectors           []UrlSelector
 	ProductDetailSelector  ProductDetailSelector
 	engine                 *Engine
@@ -221,19 +221,21 @@ func (app *Crawler) closeBrowsers() {
 
 }
 
-func (app *Crawler) openPages() {
+func (app *Crawler) openPages() interface{} {
 	var err error
+	var page interface{}
 	if *app.engine.IsDynamic {
 		if *app.engine.Adapter == PlayWrightEngine {
-			app.pwPage, err = app.GetPage(app.pwBrowserCtx)
+			page, err = app.GetPage(app.pwBrowserCtx)
 		}
 		if *app.engine.Adapter == RodEngine {
-			app.rdPage, err = app.GetRodPage(app.rdBrowser)
+			page, err = app.GetRodPage(app.rdBrowser)
 		}
 	}
 	if err != nil {
 		app.Logger.Fatal(err.Error())
 	}
+	return page
 
 }
 

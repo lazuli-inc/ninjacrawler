@@ -71,9 +71,6 @@ func (app *Crawler) navigateTo(ctx context.Context, page interface{}, crawlableU
 	} else {
 		app.Logger.Info("Crawling %s: %s", origin, crawlableUrl)
 	}
-	if page == nil {
-		return nil, fmt.Errorf("page is nil")
-	}
 	// Check if the context is already done (canceled or timed out)
 	select {
 	case <-ctx.Done():
@@ -85,6 +82,9 @@ func (app *Crawler) navigateTo(ctx context.Context, page interface{}, crawlableU
 
 	// Handle dynamic or static crawling
 	if *app.engine.IsDynamic {
+		if page == nil {
+			return nil, fmt.Errorf("page is nil")
+		}
 		switch *app.engine.Adapter {
 		case PlayWrightEngine:
 			pwPage, doc, err = app.NavigateToURL(page, crawlableUrl, currentProxy)

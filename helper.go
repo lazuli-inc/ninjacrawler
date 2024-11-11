@@ -874,6 +874,10 @@ func (app *Crawler) cleanUpTempFiles() error {
 	return nil
 }
 
+func (app *Crawler) GetUserAgent() string {
+	return app.userAgent
+}
+
 // Helper function to fill input fields based on cookie consent action
 func fillConsentFields(page interface{}, action *CookieAction) error {
 	if action == nil || len(action.Fields) == 0 {

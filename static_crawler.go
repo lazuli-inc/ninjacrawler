@@ -140,7 +140,7 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 	userAgent := "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
 	// Overwrite the default User-Agent header
 	if app.userAgent != "" {
-		userAgent = app.userAgent
+		userAgent = app.GetUserAgent()
 	}
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Referer", app.BaseUrl)

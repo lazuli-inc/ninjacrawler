@@ -36,6 +36,7 @@ type ElementType struct {
 }
 type AppPreference struct {
 	ExcludeUniqueUrlEntities []string
+	CheckRobotsTxt           *bool
 }
 type Preference struct {
 	DoNotMarkAsComplete bool

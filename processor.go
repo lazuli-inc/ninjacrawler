@@ -1,7 +1,10 @@
 package ninjacrawler
 
 import (
+	"fmt"
+	"github.com/temoto/robotstxt"
 	"math/rand"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -76,7 +79,16 @@ func (app *Crawler) processUrlsWithProxies(urls []UrlCollection, config Processo
 				break
 			}
 
-			url := urls[i]
+			collection := urls[i]
+
+			if app.preference.CheckRobotsTxt != nil && *app.preference.CheckRobotsTxt {
+				if !shouldCrawl(collection.Url, app.robotsData, app.GetUserAgent()) {
+					app.Logger.Debug("[SKIP] Robots disallowed: %s", collection.Url)
+					continue
+				}
+				// do check other stuff like CrawlDelay
+			}
+
 			wg.Add(1)
 
 			go func(urlCollection UrlCollection, proxy Proxy) {
@@ -101,7 +113,7 @@ func (app *Crawler) processUrlsWithProxies(urls []UrlCollection, config Processo
 					atomic.AddInt32(total, -1)
 					shouldContinue = false
 				}
-			}(url, proxy)
+			}(collection, proxy)
 		}
 
 		wg.Wait()
@@ -256,4 +268,19 @@ func (app *Crawler) processPostCrawl(config ProcessorConfig) {
 		app.Logger.Summary("Data count: %s", dataCount)
 		exportProductDetailsToCSV(app, config.Entity, 1)
 	}
+}
+func shouldCrawl(fullURL string, robotsData *robotstxt.RobotsData, userAgent string) bool {
+	if robotsData == nil {
+		return true
+	}
+	group := robotsData.FindGroup(userAgent)
+
+	// Extract only the path part of the URL for testing
+	parsedURL, err := url.Parse(fullURL)
+	if err != nil {
+		fmt.Println("[shouldCrawl] Error parsing fullURL:", err)
+		return false
+	}
+
+	return group.Test(parsedURL.Path)
 }

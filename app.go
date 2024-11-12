@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-rod/rod"
 	"github.com/playwright-community/playwright-go"
+	"github.com/temoto/robotstxt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
 	"os"
@@ -50,6 +51,7 @@ type Crawler struct {
 	lastWorkingProxyIndex  int32
 	mu                     sync.Mutex
 	CurrentProcessorConfig ProcessorConfig
+	robotsData             *robotstxt.RobotsData
 }
 
 func NewCrawler(name, url string, engines ...Engine) *Crawler {
@@ -92,7 +94,7 @@ func (app *Crawler) Start() {
 	}()
 	startTime = time.Now()
 	app.Logger.Summary("Crawler started!")
-
+	app.bootstrap()
 	deleteDB := app.Config.GetBool("DELETE_DB")
 	if deleteDB {
 		err := app.dropDatabase()
@@ -323,11 +325,15 @@ func (app *Crawler) AutoHandle(configs []ProcessorConfig) {
 func getDefaultPreference() AppPreference {
 	return AppPreference{
 		ExcludeUniqueUrlEntities: []string{},
+		CheckRobotsTxt:           Bool(false),
 	}
 }
 func overridePreferenceDefaults(defaultPreference *AppPreference, preference *AppPreference) {
 	if len(preference.ExcludeUniqueUrlEntities) > 0 {
 		defaultPreference.ExcludeUniqueUrlEntities = preference.ExcludeUniqueUrlEntities
+	}
+	if preference.CheckRobotsTxt != nil {
+		defaultPreference.CheckRobotsTxt = preference.CheckRobotsTxt
 	}
 }
 

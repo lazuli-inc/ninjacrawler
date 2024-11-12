@@ -5,6 +5,7 @@ go 1.22.3
 require (
 	cloud.google.com/go/bigquery v1.61.0
 	cloud.google.com/go/compute/metadata v0.3.0
+	cloud.google.com/go/datastore v1.17.0
 	cloud.google.com/go/logging v1.10.0
 	cloud.google.com/go/storage v1.42.0
 	github.com/PuerkitoBio/goquery v1.9.2
@@ -12,6 +13,7 @@ require (
 	github.com/go-rod/rod v0.116.2
 	github.com/playwright-community/playwright-go v0.4401.0
 	github.com/spf13/viper v1.19.0
+	github.com/temoto/robotstxt v1.1.2
 	go.mongodb.org/mongo-driver v1.15.0
 	golang.org/x/net v0.25.0
 	google.golang.org/api v0.183.0

@@ -232,17 +232,16 @@ func (app *Crawler) handleCrawlError(err error, urlCollection UrlCollection, con
 }
 
 func (app *Crawler) rotateProxy(err error, attempt int) bool {
+	if app.engine.RetrySleepDuration > 0 {
+		app.Logger.Info("Sleeping %d seconds before retrying", app.engine.RetrySleepDuration)
+		time.Sleep(time.Duration(app.engine.RetrySleepDuration) * time.Second)
+	}
 	if len(app.engine.ProxyServers) == 0 || app.engine.ProxyStrategy != ProxyStrategyRotation {
 		return false
 	}
 
 	app.Logger.Warn("Retrying after %d requests with different proxy %s", atomic.LoadInt32(&app.ReqCount), err.Error())
 	shouldRotateProxy = true
-
-	if app.engine.RetrySleepDuration > 0 {
-		app.Logger.Info("Sleeping %d seconds before retrying", app.engine.RetrySleepDuration)
-		time.Sleep(time.Duration(app.engine.RetrySleepDuration) * time.Second)
-	}
 
 	if attempt >= len(app.engine.ProxyServers) {
 		app.Logger.Info("All proxies exhausted.")

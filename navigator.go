@@ -50,7 +50,7 @@ func (app *Crawler) Navigate(url string, engines ...Engine) (*NavigationContext,
 				shouldRotateProxy = true
 				if app.engine.RetrySleepDuration > 0 {
 					app.Logger.Info("Sleeping %d seconds before retrying", app.engine.RetrySleepDuration)
-					time.Sleep(time.Duration(app.engine.RetrySleepDuration) * time.Second)
+					time.Sleep(time.Duration(app.engine.RetrySleepDuration) * time.Minute)
 				}
 				// Retry with the next proxy and return the result
 				return app.Navigate(url, engines...)
@@ -113,7 +113,7 @@ func (app *Crawler) Navigates(url string, fn func(*NavigationContext) error, eng
 				shouldRotateProxy = true
 				if app.engine.RetrySleepDuration > 0 {
 					app.Logger.Info("Sleeping %d seconds before retrying", app.engine.RetrySleepDuration)
-					time.Sleep(time.Duration(app.engine.RetrySleepDuration) * time.Second)
+					time.Sleep(time.Duration(app.engine.RetrySleepDuration) * time.Minute)
 				}
 				// Retry with the next proxy and return the result
 				return app.Navigates(url, fn, engines...)

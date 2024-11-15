@@ -234,7 +234,7 @@ func (app *Crawler) handleCrawlError(err error, urlCollection UrlCollection, con
 func (app *Crawler) rotateProxy(err error, attempt int) bool {
 	if app.engine.RetrySleepDuration > 0 {
 		app.Logger.Info("Sleeping %d seconds before retrying", app.engine.RetrySleepDuration)
-		time.Sleep(time.Duration(app.engine.RetrySleepDuration) * time.Second)
+		time.Sleep(time.Duration(app.engine.RetrySleepDuration) * time.Minute)
 	}
 	if len(app.engine.ProxyServers) == 0 || app.engine.ProxyStrategy != ProxyStrategyRotation {
 		return false

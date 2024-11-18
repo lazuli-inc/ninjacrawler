@@ -56,6 +56,7 @@ type Engine struct {
 	SimulateMouse          *bool
 	OpenDevTools           *bool
 	TrackRedirection       *bool
+	ApplyRandomSleep       *bool
 }
 type ProviderQueryOption struct {
 	JsRender             bool

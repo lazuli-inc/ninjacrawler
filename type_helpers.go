@@ -1,10 +1,11 @@
 package ninjacrawler
 
 var (
-	ProxyStrategyConcurrency = "concurrency"
-	ProxyStrategyRotation    = "rotation"
-	PlayWrightEngine         = "playwright"
-	RodEngine                = "rod"
+	ProxyStrategyConcurrency      = "concurrency"
+	ProxyStrategyRotation         = "rotation"
+	ProxyStrategyRotationPerBatch = "rotation-per-batch"
+	PlayWrightEngine              = "playwright"
+	RodEngine                     = "rod"
 )
 
 // String is a helper routine that allocates a new string value

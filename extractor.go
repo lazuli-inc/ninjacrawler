@@ -8,7 +8,6 @@ import (
 )
 
 func (app *Crawler) extract(page interface{}, processorConfig ProcessorConfig, ctx CrawlerContext) error {
-	defer app.closePages(page)
 	if processorConfig.StateHandler != nil {
 		data := processorConfig.StateHandler(ctx)
 		ctx.State = data

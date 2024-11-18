@@ -384,6 +384,7 @@ func getDefaultEngine() Engine {
 		SimulateMouse:           Bool(false),
 		OpenDevTools:            Bool(false),
 		TrackRedirection:        Bool(false),
+		ApplyRandomSleep:        Bool(false),
 	}
 }
 
@@ -567,6 +568,9 @@ func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	}
 	if eng.TrackRedirection != nil {
 		defaultEngine.TrackRedirection = eng.TrackRedirection
+	}
+	if eng.ApplyRandomSleep != nil {
+		defaultEngine.ApplyRandomSleep = eng.ApplyRandomSleep
 	}
 }
 

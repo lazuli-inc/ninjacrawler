@@ -749,7 +749,7 @@ func (app *Crawler) stopProxy(proxy Proxy, errStr string) error {
 	// Check for non-200 status codes
 	if response.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(response.Body)
-		return fmt.Errorf("API error status %d, body: %s", response.StatusCode, string(bodyBytes))
+		return fmt.Errorf("API error status %d, payload %s, body: %s", response.StatusCode, string(jsonData), string(bodyBytes))
 	}
 
 	return nil

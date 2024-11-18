@@ -68,9 +68,11 @@ func (app *Crawler) processUrlsWithProxies(urls []UrlCollection, config Processo
 		if !shouldContinue {
 			break
 		}
-		// Assign proxy based on the current batch and strategy
-		proxy := app.getProxy(int(atomic.LoadInt32(&batchCount)), proxies, &proxyLock)
-		app.openBrowsers(proxy)
+		proxy := Proxy{}
+		proxy = app.getProxy(int(atomic.LoadInt32(&batchCount)), proxies, &proxyLock)
+		if !app.batchAbleStrategy() {
+			app.openBrowsers(proxy)
+		}
 
 		// Loop through the URLs in the current batch
 		for i := batchIndex; i < batchIndex+app.engine.ConcurrentLimit && i < len(urls); i++ {
@@ -98,39 +100,50 @@ func (app *Crawler) processUrlsWithProxies(urls []UrlCollection, config Processo
 						app.HandlePanic(r)
 					}
 				}()
-
-				proxyLock.Lock()
-				app.applySleep()
+				if app.batchAbleStrategy() {
+					if *app.engine.IsDynamic {
+						app.Logger.Fatal("Dynamic mode is not supported with current strategy")
+					}
+					proxy = app.getProxy(int(atomic.LoadInt32(&batchCount)), proxies, &proxyLock)
+					app.openBrowsers(proxy)
+					defer app.closeBrowsers()
+				}
+				if app.engine.ApplyRandomSleep != nil && *app.engine.ApplyRandomSleep {
+					app.applySleep()
+				}
 				// Increment request count safely and apply sleep if needed
 				atomic.AddInt32(&app.ReqCount, 1)
 				app.CurrentCollection = config.OriginCollection
 				app.CurrentUrlCollection = urlCollection
 				//app.assignProxy(proxy)
 				page := app.openPages()
-				proxyLock.Unlock()
+				defer app.closePages(page)
 				ok := app.crawlWithProxies(page, urlCollection, config, 0, proxy)
 				if ok && crawlLimit > 0 && atomic.AddInt32(total, 1) > int32(crawlLimit) {
 					atomic.AddInt32(total, -1)
 					shouldContinue = false
 				}
 			}(collection, proxy)
+
+			if app.batchAbleStrategy() {
+				atomic.AddInt32(&batchCount, 1)
+			}
+
 		}
 
 		wg.Wait()
-		app.closeBrowsers()
 		//proxyLock.Lock()
-		atomic.AddInt32(&batchCount, 1)
-		//proxyLock.Unlock()
-		/*
-			For test the rotate proxy uncomment this block
-		*/
-		//if atomic.LoadInt32(&batchCount)%2 == 0 {
-		//	shouldRotateProxy = true
-		//}
+		if !app.batchAbleStrategy() {
+			app.closeBrowsers()
+			atomic.AddInt32(&batchCount, 1)
+		}
 
 	}
 
 	return shouldContinue
+}
+func (app *Crawler) batchAbleStrategy() bool {
+	return app.engine.ProxyStrategy == ProxyStrategyRotationPerBatch
 }
 func (app *Crawler) getProxy(batchCount int, proxies []Proxy, proxyLock *sync.Mutex) Proxy {
 	proxyLock.Lock()
@@ -152,6 +165,14 @@ func (app *Crawler) getProxy(batchCount int, proxies []Proxy, proxyLock *sync.Mu
 			proxyIndex = (proxyIndex + 1) % len(proxies)
 			app.Logger.Summary("Error with proxy %s: Retrying with proxy: %s", app.engine.ProxyServers[atomic.LoadInt32(&app.lastWorkingProxyIndex)].Server, app.engine.ProxyServers[proxyIndex].Server)
 			shouldRotateProxy = false
+		}
+		proxy = proxies[proxyIndex]
+	} else if app.engine.ProxyStrategy == ProxyStrategyRotationPerBatch {
+		proxyIndex = int(atomic.LoadInt32(&app.lastWorkingProxyIndex))
+		proxyIndex = (proxyIndex + 1) % len(proxies)
+		shouldRotateProxy = false
+		if batchCount == 0 {
+			proxyIndex = 0
 		}
 		proxy = proxies[proxyIndex]
 	}

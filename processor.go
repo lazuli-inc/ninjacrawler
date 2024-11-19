@@ -33,8 +33,15 @@ func (app *Crawler) Crawl(configs []ProcessorConfig) {
 			if len(productList) == 0 {
 				break
 			}
-
-			shouldContinue := app.processUrlsWithProxies(productList, config, &total, crawlLimit)
+			shouldContinue := false
+			if app.engine.ProxyStrategy == ProxyStrategyRotationPerBatch {
+				if *app.engine.IsDynamic {
+					app.Logger.Fatal("Dynamic mode is not supported with current strategy")
+				}
+				shouldContinue = app.processStaticUrlsWithProxies(productList, config, &total, crawlLimit)
+			} else {
+				shouldContinue = app.processUrlsWithProxies(productList, config, &total, crawlLimit)
+			}
 
 			if !shouldContinue {
 				app.Logger.Debug("Crawl limit of %d reached, stopping...", crawlLimit)

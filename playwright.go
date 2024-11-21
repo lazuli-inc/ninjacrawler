@@ -206,7 +206,10 @@ func (app *Crawler) NavigateToURL(pageInterFace interface{}, url string, proxy P
 
 	// Wait for selector if applicable
 	if app.engine.WaitForSelector != nil || app.engine.WaitForSelectorVisible != nil {
-		selector := *app.engine.WaitForSelector
+		selector := ""
+		if app.engine.WaitForSelector != nil {
+			selector = *app.engine.WaitForSelector
+		}
 		pageWaitForSelectorOptions := playwright.PageWaitForSelectorOptions{
 			Timeout: playwright.Float(float64(app.engine.Timeout.Milliseconds())),
 			State:   playwright.WaitForSelectorStateAttached,

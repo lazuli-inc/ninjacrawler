@@ -57,62 +57,62 @@ func (app *Crawler) getCrawlerCtx(navigationContext *NavigationContext) *Crawler
 	return crawlerCtx
 }
 func (app *Crawler) navigateTo(ctx context.Context, page interface{}, crawlableUrl string, origin string, navigateToApi bool, currentProxy Proxy) (*NavigationContext, error) {
-	var (
-		err      error
-		doc      *goquery.Document
-		pwPage   playwright.Page
-		rdPage   *rod.Page
-		response interface{}
-	)
+	// Create a channel to capture navigation result
+	resultChan := make(chan navigationResult, 1)
 
-	// Simplified logging for proxy usage
-	if currentProxy.Server != "" {
-		app.Logger.Info("Crawling %s: %s using Proxy %s", origin, crawlableUrl, currentProxy.Server)
-	} else {
-		app.Logger.Info("Crawling %s: %s", origin, crawlableUrl)
-	}
-	// Check if the context is already done (canceled or timed out)
+	go func() {
+		var (
+			err      error
+			doc      *goquery.Document
+			pwPage   playwright.Page
+			rdPage   *rod.Page
+			response interface{}
+		)
+		if currentProxy.Server != "" {
+			app.Logger.Info("Crawling %s: %s using Proxy %s", origin, crawlableUrl, currentProxy.Server)
+		} else {
+			app.Logger.Info("Crawling %s: %s", origin, crawlableUrl)
+		}
+		// Actual navigation logic
+		if *app.engine.IsDynamic && page != nil {
+			if *app.engine.Adapter == PlayWrightEngine {
+				pwPage, doc, err = app.NavigateToURL(page, crawlableUrl, currentProxy)
+				response = pwPage
+			} else if *app.engine.Adapter == RodEngine {
+				rdPage, doc, err = app.NavigateRodURL(page, crawlableUrl, currentProxy)
+				response = rdPage
+			}
+		} else if navigateToApi {
+			response, err = app.NavigateToApiURL(app.httpClient, crawlableUrl, currentProxy)
+		} else {
+			doc, err = app.NavigateToStaticURL(app.httpClient, crawlableUrl, currentProxy)
+			response = app.httpClient
+		}
+
+		resultChan <- navigationResult{
+			NavigationContext: &NavigationContext{
+				Document: doc,
+				Response: response,
+			},
+			Err: err,
+		}
+	}()
+
+	// Wait for either navigation completion or context timeout
 	select {
+	case result := <-resultChan:
+		if result.Err != nil {
+			app.Logger.Error("Error during navigation to %s: %v", crawlableUrl, result.Err)
+			return nil, result.Err
+		}
+		return result.NavigationContext, nil
 	case <-ctx.Done():
-		app.Logger.Warn("Navigation canceled or timed out for %s", crawlableUrl)
 		return nil, fmt.Errorf("navigation timeout: %s", crawlableUrl)
-	default:
-		// Proceed with navigation
 	}
+}
 
-	// Handle dynamic or static crawling
-	if *app.engine.IsDynamic {
-		if page == nil {
-			return nil, fmt.Errorf("page is nil")
-		}
-		switch *app.engine.Adapter {
-		case PlayWrightEngine:
-			pwPage, doc, err = app.NavigateToURL(page, crawlableUrl, currentProxy)
-			response = pwPage
-		case RodEngine:
-			rdPage, doc, err = app.NavigateRodURL(page, crawlableUrl, currentProxy)
-			response = rdPage
-		default:
-			return nil, fmt.Errorf("unsupported engine adapter: %v", *app.engine.Adapter)
-		}
-	} else if navigateToApi {
-		// Navigate using API
-		response, err = app.NavigateToApiURL(app.httpClient, crawlableUrl, currentProxy)
-	} else {
-		// Static navigation
-		doc, err = app.NavigateToStaticURL(app.httpClient, crawlableUrl, currentProxy)
-		response = app.httpClient
-	}
-
-	// Check for errors after navigation
-	if err != nil {
-		app.Logger.Error("Error during navigation to %s: %v", crawlableUrl, err)
-		return nil, err
-	}
-
-	// Return the navigation context
-	return &NavigationContext{
-		Document: doc,
-		Response: response,
-	}, nil
+// Helper struct to capture navigation result
+type navigationResult struct {
+	NavigationContext *NavigationContext
+	Err               error
 }

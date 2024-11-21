@@ -197,6 +197,15 @@ func (app *Crawler) NavigateToURL(pageInterFace interface{}, url string, proxy P
 		app.Logger.Warn(fmt.Sprintf("Redirection detected: %s -> %s", originalURL, finalURL))
 	}
 
+	// Handle cookie consent
+	if err = handleCookieConsent(page, app.engine.CookieConsent); err != nil {
+		if app.engine.CookieConsent.IsOptional {
+			app.Logger.Warn("cookie consent not found: %s", err.Error())
+		} else {
+			app.Logger.Html(app.getHtmlFromPage(page), url, err.Error())
+			return nil, nil, fmt.Errorf("failed to handle cookie consent: %w", err)
+		}
+	}
 	// Handle mouse simulation, if applicable
 	if app.engine.SimulateMouse != nil && *app.engine.SimulateMouse {
 		if mError := autoMoveMouse(page); mError != nil {
@@ -216,22 +225,13 @@ func (app *Crawler) NavigateToURL(pageInterFace interface{}, url string, proxy P
 		}
 		if app.engine.WaitForSelectorVisible != nil {
 			pageWaitForSelectorOptions.State = playwright.WaitForSelectorStateVisible
+			pageWaitForSelectorOptions.Timeout = playwright.Float(float64(app.engine.Timeout.Milliseconds()))
 			selector = *app.engine.WaitForSelectorVisible
 		}
 		_, err = page.WaitForSelector(selector, pageWaitForSelectorOptions)
 		if err != nil {
-			app.Logger.Html(app.getHtmlFromPage(page), url, fmt.Sprintf("Failed to find %s: %s", *app.engine.WaitForSelector, err.Error()))
-			return nil, nil, fmt.Errorf("failed to find %s: %w", *app.engine.WaitForSelector, err)
-		}
-	}
-
-	// Handle cookie consent
-	if err = handleCookieConsent(page, app.engine.CookieConsent); err != nil {
-		if app.engine.CookieConsent.IsOptional {
-			app.Logger.Warn("cookie consent not found: %s", err.Error())
-		} else {
-			app.Logger.Html(app.getHtmlFromPage(page), url, err.Error())
-			return nil, nil, fmt.Errorf("failed to handle cookie consent: %w", err)
+			app.Logger.Html(app.getHtmlFromPage(page), url, fmt.Sprintf("Failed to find %s: %s", selector, err.Error()))
+			return nil, nil, fmt.Errorf("failed to find %s: %w", selector, err)
 		}
 	}
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/go-rod/rod"
 	"github.com/playwright-community/playwright-go"
-	"strings"
 )
 
 func (app *Crawler) extract(page interface{}, processorConfig ProcessorConfig, ctx CrawlerContext) error {
@@ -163,7 +162,7 @@ func (app *Crawler) validateProductDetail(res *ProductDetail, processorConfig Pr
 		html, _ := ctx.Document.Html()
 		app.Logger.Html(html, ctx.UrlCollection.Url, msg, "validation")
 		var err error
-		if *app.engine.IgnoreRetryOnValidation || !strings.Contains(invalidFields[0], "isRetryable") {
+		if *app.engine.IgnoreRetryOnValidation {
 			err = app.MarkAsMaxErrorAttempt(ctx.UrlCollection.Url, processorConfig.OriginCollection, msg)
 		} else {
 			err = app.MarkAsError(ctx.UrlCollection.Url, processorConfig.OriginCollection, msg)

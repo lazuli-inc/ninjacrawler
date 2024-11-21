@@ -65,6 +65,7 @@ type CookieAction struct {
 	Selector                    string
 	ButtonText                  string
 	MustHaveSelectorAfterAction string
+	IsOptional                  bool
 	Fields                      []FormInput
 }
 

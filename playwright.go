@@ -224,8 +224,12 @@ func (app *Crawler) NavigateToURL(pageInterFace interface{}, url string, proxy P
 
 	// Handle cookie consent
 	if err = handleCookieConsent(page, app.engine.CookieConsent); err != nil {
-		app.Logger.Html(app.getHtmlFromPage(page), url, err.Error())
-		return nil, nil, fmt.Errorf("failed to handle cookie consent: %w", err)
+		if app.engine.CookieConsent.IsOptional {
+			app.Logger.Warn("cookie consent not found: %s", err.Error())
+		} else {
+			app.Logger.Html(app.getHtmlFromPage(page), url, err.Error())
+			return nil, nil, fmt.Errorf("failed to handle cookie consent: %w", err)
+		}
 	}
 
 	document, err := app.GetDocument(page)

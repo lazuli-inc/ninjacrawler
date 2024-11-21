@@ -248,20 +248,20 @@ func (app *Crawler) handleCrawlError(err error, urlCollection UrlCollection, con
 		}
 	}
 
-	if strings.Contains(err.Error(), "isRetryable") {
-		return app.rotateProxy(err, attempt)
-	}
-
 	if markErr := app.MarkAsError(urlCollection.Url, config.OriginCollection, err.Error()); markErr != nil {
 		app.Logger.Error("markErr: ", markErr.Error())
 	}
 	app.Logger.Error("Error crawling %s: %v", urlCollection.Url, err)
+
+	if strings.Contains(err.Error(), "isRetryable") {
+		return app.rotateProxy(err, attempt)
+	}
 	return false
 }
 
 func (app *Crawler) rotateProxy(err error, attempt int) bool {
 	if app.engine.RetrySleepDuration > 0 {
-		app.Logger.Info("Sleeping %d seconds before retrying", app.engine.RetrySleepDuration)
+		app.Logger.Info("Sleeping %d minutes before retrying", app.engine.RetrySleepDuration)
 		time.Sleep(time.Duration(app.engine.RetrySleepDuration) * time.Minute)
 	}
 	if len(app.engine.ProxyServers) == 0 || app.engine.ProxyStrategy != ProxyStrategyRotation {

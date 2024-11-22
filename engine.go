@@ -46,17 +46,18 @@ type Engine struct {
 	/*
 		RetrySleepDuration in minutes
 	*/
-	RetrySleepDuration     int
-	ErrorCodes             []int
-	CrawlTimeout           int
-	WaitForSelector        *string
-	WaitForSelectorVisible *string
-	StoreHtml              *bool
-	SendHtmlToBigquery     *bool
-	SimulateMouse          *bool
-	OpenDevTools           *bool
-	TrackRedirection       *bool
-	ApplyRandomSleep       *bool
+	RetrySleepDuration        int
+	ErrorCodes                []int
+	CrawlTimeout              int
+	WaitForSelector           *string
+	WaitForSelectorVisible    *string
+	IsWaitForSelectorOptional *bool
+	StoreHtml                 *bool
+	SendHtmlToBigquery        *bool
+	SimulateMouse             *bool
+	OpenDevTools              *bool
+	TrackRedirection          *bool
+	ApplyRandomSleep          *bool
 }
 type ProviderQueryOption struct {
 	JsRender             bool

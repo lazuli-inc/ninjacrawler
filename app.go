@@ -377,14 +377,15 @@ func getDefaultEngine() Engine {
 			403,
 			407,
 		},
-		IgnoreRetryOnValidation: Bool(false),
-		StoreHtml:               Bool(false),
-		SendHtmlToBigquery:      Bool(false),
-		Adapter:                 String(PlayWrightEngine),
-		SimulateMouse:           Bool(false),
-		OpenDevTools:            Bool(false),
-		TrackRedirection:        Bool(false),
-		ApplyRandomSleep:        Bool(false),
+		IgnoreRetryOnValidation:   Bool(false),
+		StoreHtml:                 Bool(false),
+		SendHtmlToBigquery:        Bool(false),
+		Adapter:                   String(PlayWrightEngine),
+		SimulateMouse:             Bool(false),
+		OpenDevTools:              Bool(false),
+		TrackRedirection:          Bool(false),
+		ApplyRandomSleep:          Bool(false),
+		IsWaitForSelectorOptional: Bool(false),
 	}
 }
 
@@ -571,6 +572,9 @@ func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	}
 	if eng.ApplyRandomSleep != nil {
 		defaultEngine.ApplyRandomSleep = eng.ApplyRandomSleep
+	}
+	if eng.IsWaitForSelectorOptional != nil {
+		defaultEngine.IsWaitForSelectorOptional = eng.IsWaitForSelectorOptional
 	}
 }
 

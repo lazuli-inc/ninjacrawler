@@ -231,7 +231,11 @@ func (app *Crawler) NavigateToURL(pageInterFace interface{}, url string, proxy P
 		_, err = page.WaitForSelector(selector, pageWaitForSelectorOptions)
 		if err != nil {
 			app.Logger.Html(app.getHtmlFromPage(page), url, fmt.Sprintf("Failed to find %s: %s", selector, err.Error()))
-			return nil, nil, fmt.Errorf("failed to find %s: %w", selector, err)
+			if *app.engine.IsWaitForSelectorOptional {
+				app.Logger.Warn("% Not found found in DOM: %s", selector, err.Error())
+			} else {
+				return nil, nil, fmt.Errorf("failed to find %s: %w", selector, err)
+			}
 		}
 	}
 

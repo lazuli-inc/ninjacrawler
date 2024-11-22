@@ -2,6 +2,7 @@ package ninjacrawler
 
 import (
 	"fmt"
+	"github.com/playwright-community/playwright-go"
 	"net/url"
 	"strings"
 	"time"
@@ -30,6 +31,7 @@ type Engine struct {
 	ProxyServers  []Proxy
 	ProxyStrategy string
 	CookieConsent *CookieAction
+	Cookies       []playwright.OptionalCookie
 	/*
 		Timeout in seconds
 	*/

@@ -106,7 +106,6 @@ func (app *Crawler) GetBrowser(pw *playwright.Playwright, browserType string, pr
 			Password: playwright.String(proxy.Password),
 		}
 	}
-
 	// Launch the appropriate browser and configure user-agent headers
 	switch browserType {
 	case "chromium":
@@ -134,6 +133,14 @@ func (app *Crawler) GetBrowser(pw *playwright.Playwright, browserType string, pr
 	if err != nil {
 		return nil, fmt.Errorf("could not create new browser context: %w", err)
 	}
+
+	if len(app.engine.Cookies) > 0 {
+		err = context.AddCookies(app.engine.Cookies)
+		if err != nil {
+			return nil, fmt.Errorf("failed to add cookies: %w", err)
+		}
+	}
+
 	return context, nil
 }
 
@@ -232,7 +239,7 @@ func (app *Crawler) NavigateToURL(pageInterFace interface{}, url string, proxy P
 		if err != nil {
 			app.Logger.Html(app.getHtmlFromPage(page), url, fmt.Sprintf("Failed to find %s: %s", selector, err.Error()))
 			if *app.engine.IsWaitForSelectorOptional {
-				app.Logger.Warn("% Not found found in DOM: %s", selector, err.Error())
+				app.Logger.Warn("%s Not found found in DOM: %s", selector, err.Error())
 			} else {
 				return nil, nil, fmt.Errorf("failed to find %s: %w", selector, err)
 			}

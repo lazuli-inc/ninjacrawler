@@ -386,6 +386,7 @@ func getDefaultEngine() Engine {
 		TrackRedirection:          Bool(false),
 		ApplyRandomSleep:          Bool(false),
 		IsWaitForSelectorOptional: Bool(false),
+		Cookies:                   nil,
 	}
 }
 
@@ -575,6 +576,9 @@ func (app *Crawler) overrideEngineDefaults(defaultEngine *Engine, eng *Engine) {
 	}
 	if eng.IsWaitForSelectorOptional != nil {
 		defaultEngine.IsWaitForSelectorOptional = eng.IsWaitForSelectorOptional
+	}
+	if eng.Cookies != nil {
+		defaultEngine.Cookies = eng.Cookies
 	}
 }
 

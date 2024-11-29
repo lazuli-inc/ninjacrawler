@@ -176,7 +176,7 @@ func (app *Crawler) MarkAsError(url string, dbCollection string, errStr string, 
 		currentErrLog = result["error_log"].(string)
 	}
 
-	errStr = currentErrLog + "\n" + errStr
+	errStr = currentErrLog + "\n--------\n" + errStr
 	update := bson.D{
 		{Key: "$set", Value: bson.D{
 			{Key: "error", Value: true},
@@ -354,6 +354,14 @@ func (app *Crawler) getUrlCollections(collection string) []UrlCollection {
 	}
 	return app.filterUrlData(filterCondition, app.getCollection(collection))
 }
+func (app *Crawler) getRetryableUrlCollections(collection string) []UrlCollection {
+	filterCondition := bson.D{
+		{Key: "status", Value: false},
+		{Key: "error", Value: true},
+		{Key: "attempts", Value: bson.D{{Key: "$gte", Value: 1}}},
+	}
+	return app.filterUrlData(filterCondition, app.getCollection(collection))
+}
 
 // filterUrlData retrieves URL collections from a collection based on a filter condition.
 func (app *Crawler) filterUrlData(filterCondition bson.D, mongoCollection *mongo.Collection) []UrlCollection {
@@ -463,4 +471,12 @@ func (app *Crawler) GetErrorDataCount(collection string) int {
 	}
 
 	return int(count)
+}
+
+func (app *Crawler) GetErrorData(collection string) []UrlCollection {
+	filterCondition := bson.D{
+		{"status", false},
+		{"error", true},
+	}
+	return app.filterUrlData(filterCondition, app.getCollection(collection))
 }

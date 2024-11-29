@@ -667,6 +667,81 @@ func (app *Crawler) StopCrawler() error {
 	}
 	return nil
 }
+func (app *Crawler) AddCrawlingLog(payload string) error {
+	if !metadata.OnGCE() {
+		return nil
+	}
+	instanceName := "local-vm-" + app.Name + "-" + time.Now().Format("2006-01-02")
+	var err error
+	if metadata.OnGCE() {
+		instanceName, err = metadata.InstanceName()
+		if err != nil {
+			log.Fatalf("Failed to get instanceName: %v", err)
+		}
+	}
+
+	managerUrl := fmt.Sprintf("%s/api/add-crawler-logs/%s", app.Config.GetString("SERVER_IP"), instanceName)
+
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", managerUrl, strings.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	response, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("connection failed: %w", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(response.Body)
+		return fmt.Errorf("API error status %d, body: %s", response.StatusCode, string(bodyBytes))
+	}
+
+	app.Logger.Debug("Monitoring report successfully sent to Crawl Manager API.")
+	return nil
+}
+func (app *Crawler) AddCrawSummary(payload string) error {
+	if !metadata.OnGCE() {
+		return nil
+	}
+	instanceName := "local-vm-" + app.Name + "-" + time.Now().Format("2006-01-02")
+	var err error
+	if metadata.OnGCE() {
+		instanceName, err = metadata.InstanceName()
+		if err != nil {
+			log.Fatalf("Failed to get instanceName: %v", err)
+		}
+	}
+
+	managerUrl := fmt.Sprintf("%s/api/add-crawler-summary/%s", app.Config.GetString("SERVER_IP"), instanceName)
+
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", managerUrl, strings.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	response, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("connection failed: %w", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(response.Body)
+		return fmt.Errorf("API error status %d, body: %s", response.StatusCode, string(bodyBytes))
+	}
+
+	app.Logger.Debug("Summary report successfully sent to Crawl Manager API.")
+	return nil
+}
+
 func (app *Crawler) FetchProxy() ([]Proxy, error) {
 	var proxies []Proxy
 

@@ -49,7 +49,7 @@ func (app *Crawler) Navigate(url string, engines ...Engine) (*NavigationContext,
 			if len(app.engine.ProxyServers) > 0 && app.engine.ProxyStrategy == ProxyStrategyRotation {
 				shouldRotateProxy = true
 				if app.engine.RetrySleepDuration > 0 {
-					app.Logger.Info("Sleeping %d seconds before retrying", app.engine.RetrySleepDuration)
+					app.Logger.Info("Sleeping %d minutes before retrying", app.engine.RetrySleepDuration)
 					time.Sleep(time.Duration(app.engine.RetrySleepDuration) * time.Minute)
 				}
 				// Retry with the next proxy and return the result
@@ -65,7 +65,7 @@ func (app *Crawler) Navigate(url string, engines ...Engine) (*NavigationContext,
 			return nil, err
 		}
 	}
-
+	app.syncRequestMetrics()
 	defer app.closePages(page)
 	return navigationContext, nil
 }
@@ -112,7 +112,7 @@ func (app *Crawler) Navigates(url string, fn func(*NavigationContext) error, eng
 			if len(app.engine.ProxyServers) > 0 && app.engine.ProxyStrategy == ProxyStrategyRotation {
 				shouldRotateProxy = true
 				if app.engine.RetrySleepDuration > 0 {
-					app.Logger.Info("Sleeping %d seconds before retrying", app.engine.RetrySleepDuration)
+					app.Logger.Info("Sleeping %d minutes before retrying", app.engine.RetrySleepDuration)
 					time.Sleep(time.Duration(app.engine.RetrySleepDuration) * time.Minute)
 				}
 				// Retry with the next proxy and return the result
@@ -128,6 +128,7 @@ func (app *Crawler) Navigates(url string, fn func(*NavigationContext) error, eng
 			return err
 		}
 	}
+	app.syncRequestMetrics()
 	fnErr := fn(navigationContext)
 	if fnErr != nil {
 		return err

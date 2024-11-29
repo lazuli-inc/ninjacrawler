@@ -21,6 +21,7 @@ type UrlCollection struct {
 	StatusCode     int                    `json:"status_code" bson:"status_code"`
 	Attempts       int                    `json:"attempts" bson:"attempts"`
 	MetaData       map[string]interface{} `json:"meta_data" bson:"meta_data"`
+	ErrorLog       string                 `json:"error_log" bson:"error_log"`
 	CreatedAt      time.Time              `json:"created_at" bson:"created_at"`
 	UpdatedAt      *time.Time             `json:"updated_at" bson:"updated_at"`
 }

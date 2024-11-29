@@ -4,6 +4,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-rod/rod"
 	"github.com/playwright-community/playwright-go"
+	"sync"
 )
 
 const ZENROWS = "zenrows"
@@ -39,9 +40,10 @@ type AppPreference struct {
 	CheckRobotsTxt           *bool
 }
 type Preference struct {
-	DoNotMarkAsComplete bool
-	ValidationRules     []string
-	PreHandlers         []func(c PreHandlerContext) error
+	DoNotMarkAsComplete   bool
+	ValidationRules       []string
+	PreHandlers           []func(c PreHandlerContext) error
+	ValidationRetryConfig *Engine
 }
 type PreHandlerContext struct {
 	App           *Crawler
@@ -90,4 +92,13 @@ type CrawlResult struct {
 	Page          playwright.Page
 	RodPage       *rod.Page
 	Document      *goquery.Document
+}
+type RequestMetrics struct {
+	ReqCount       int32      // Total requests since the crawl started
+	HourlyReqCount int32      // Requests in the last hour
+	MinuteReqCount int32      // Requests in the last minute
+	DayReqCount    int32      // Requests in the last day
+	FailedCount    int32      // Track failed requests
+	ReportMutex    sync.Mutex // Mutex for thread-safe metric updates
+	// Additional fields...
 }

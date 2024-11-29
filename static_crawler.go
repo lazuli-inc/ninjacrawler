@@ -79,21 +79,17 @@ func (app *Crawler) getResponseBody(client *http.Client, urlString string, proxy
 	originalUrl := urlString
 
 	httpTransport := &http.Transport{
-		//DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-		//	conn, err := net.Dial(network, addr)
-		//	if err == nil {
-		//		proxyIp = conn.RemoteAddr().String()
-		//		if app.engine.Provider == "zenrows" || strings.Contains(proxyServer.Server, "proxy.zenrows.com") {
-		//			app.Logger.Info("Proxy IP address: %s => %s", proxyIp, urlString)
-		//		}
-		//	}
-		//	return conn, err
-		//},
 		DialContext: (&net.Dialer{
-			Timeout:   60 * time.Second, // Connection timeout
-			KeepAlive: 60 * time.Second,
+			Timeout:   90 * time.Second,
+			KeepAlive: 90 * time.Second,
 		}).DialContext,
-		TLSHandshakeTimeout: 60 * time.Second, // TLS handshake timeout
+		TLSHandshakeTimeout:   90 * time.Second,
+		ResponseHeaderTimeout: 90 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+			MinVersion:         tls.VersionTLS12,
+		},
 	}
 
 	if app.engine.Provider == "zenrows" {

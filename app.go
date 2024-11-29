@@ -24,6 +24,7 @@ const (
 
 type Crawler struct {
 	*mongo.Client
+	StartTime    time.Time // Start time of the crawler
 	Config       *configService
 	Name         string
 	Url          string
@@ -52,6 +53,7 @@ type Crawler struct {
 	mu                     sync.Mutex
 	CurrentProcessorConfig ProcessorConfig
 	robotsData             *robotstxt.RobotsData
+	requestMetrics         RequestMetrics
 }
 
 func NewCrawler(name, url string, engines ...Engine) *Crawler {

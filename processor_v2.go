@@ -162,9 +162,7 @@ func (app *Crawler) safeCrawl(
 		app.closeBrowsers()
 	}()
 
-	if app.engine.ApplyRandomSleep != nil && *app.engine.ApplyRandomSleep {
-		app.applySleep()
-	}
+	app.applySleep()
 
 	atomic.AddInt32(&app.ReqCount, 1)
 	app.CurrentCollection = config.OriginCollection
@@ -181,6 +179,8 @@ func (app *Crawler) safeCrawl(
 			return ErrCrawlLimitReached
 		}
 	}
+
+	app.syncRequestMetrics()
 
 	return nil
 }

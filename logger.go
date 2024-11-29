@@ -25,10 +25,11 @@ type logger interface {
 
 // defaultLogger is a default implementation of the logger interface using the standard log package.
 type defaultLogger struct {
-	logger         *log.Logger
-	app            *Crawler
-	gcpLogger      *logging.Logger // GCP Summary logger
-	gcpDebugLogger *logging.Logger // GCP Debug logger
+	logger              *log.Logger
+	app                 *Crawler
+	gcpLogger           *logging.Logger // GCP Summary logger
+	gcpDebugLogger      *logging.Logger // GCP Debug logger
+	gcpMonitoringLogger *logging.Logger // GCP Debug logger
 }
 
 // newDefaultLogger creates a new instance of defaultLogger.
@@ -54,6 +55,7 @@ func newDefaultLogger(app *Crawler, siteName string) *defaultLogger {
 	if metadata.OnGCE() {
 		dLogger.gcpLogger = getGCPLogger(app.Config, "summary_log")
 		dLogger.gcpDebugLogger = getGCPLogger(app.Config, "dev_log")
+		dLogger.gcpMonitoringLogger = getGCPLogger(app.Config, "monitoring_log")
 	}
 
 	return dLogger
@@ -122,12 +124,29 @@ func (l *defaultLogger) logWithGCP(level string, format string, args ...interfac
 		// Flush GCP logger to ensure the log is sent immediately
 		defer l.gcpDebugLogger.Flush()
 	}
+	if l.gcpMonitoringLogger != nil && level == "monitoring" {
+		l.gcpMonitoringLogger.Log(logging.Entry{
+			Payload: map[string]interface{}{
+				"level":     "monitoring",
+				"caller":    "ninjacrawler/logger.go",
+				"ts":        ts,
+				"msg":       msg,
+				"site_name": l.app.Name,
+			},
+			Severity: logging.Info,
+		})
+		// Flush GCP logger to ensure the log is sent immediately
+		defer l.gcpMonitoringLogger.Flush()
+	}
 }
 func (l *defaultLogger) Summary(format string, args ...interface{}) {
 	l.logWithGCP("summary", format, args...)
 }
 func (l *defaultLogger) Debug(format string, args ...interface{}) {
 	l.logWithGCP("debug", format, args...)
+}
+func (l *defaultLogger) monitoring(format string, args ...interface{}) {
+	l.logWithGCP("monitoring", format, args...)
 }
 func (l *defaultLogger) Info(format string, args ...interface{}) {
 	l.logger.Printf("✔ "+format, args...)

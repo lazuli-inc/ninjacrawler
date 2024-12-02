@@ -98,10 +98,12 @@ func (app *Crawler) crawlWithProxies(page interface{}, urlCollection UrlCollecti
 	if app.runPreHandlers(config, urlCollection) {
 		ctx, err := app.handleCrawlWorker(page, config, urlCollection, proxy)
 		if err != nil {
+			app.syncFailedRequestMetrics()
 			return app.handleCrawlError(err, urlCollection, config, attempt)
 		}
 		errExtract := app.extract(page, config, *ctx)
 		if errExtract != nil {
+			app.syncFailedRequestMetrics()
 			if strings.Contains(errExtract.Error(), "isRetryable") {
 				return app.rotateProxy(errExtract, attempt)
 			}
@@ -230,17 +232,23 @@ func shouldCrawl(fullURL string, robotsData *robotstxt.RobotsData, userAgent str
 	return group.Test(parsedURL.Path)
 }
 func (app *Crawler) syncRequestMetrics() {
-	atomic.AddInt32(&app.requestMetrics.MinuteReqCount, 1) // Increment minute requests
-	atomic.AddInt32(&app.requestMetrics.HourlyReqCount, 1) // Increment hourly requests
-	atomic.AddInt32(&app.requestMetrics.DayReqCount, 1)    // Increment daily requests
-	atomic.AddInt32(&app.requestMetrics.ReqCount, 1)       // Increment total requests
+	atomic.AddInt32(&app.requestMetrics.MinuteReqCount, 1)     // Increment minute requests
+	atomic.AddInt32(&app.requestMetrics.FiveMinuteReqCount, 1) // Increment 5 minute requests
+	atomic.AddInt32(&app.requestMetrics.HourlyReqCount, 1)     // Increment hourly requests
+	atomic.AddInt32(&app.requestMetrics.DayReqCount, 1)        // Increment daily requests
+	atomic.AddInt32(&app.requestMetrics.ReqCount, 1)           // Increment total requests
+}
+func (app *Crawler) syncFailedRequestMetrics() {
+	atomic.AddInt32(&app.requestMetrics.FailedCount, 1) // Increment failed requests
 }
 func (app *Crawler) startPerformanceTracking() {
 	go func() {
 		minuteTicker := time.NewTicker(1 * time.Minute)
+		fiveMinuteTicker := time.NewTicker(5 * time.Minute)
 		hourTicker := time.NewTicker(1 * time.Hour)
 		dayTicker := time.NewTicker(24 * time.Hour)
 		defer minuteTicker.Stop()
+		defer fiveMinuteTicker.Stop()
 		defer hourTicker.Stop()
 		defer dayTicker.Stop()
 
@@ -253,10 +261,19 @@ func (app *Crawler) startPerformanceTracking() {
 				atomic.StoreInt32(&app.requestMetrics.MinuteReqCount, 0) // Reset minute counter
 				app.requestMetrics.ReportMutex.Unlock()
 
+			case <-fiveMinuteTicker.C:
+				app.requestMetrics.ReportMutex.Lock()
+				fiveMinuteRate := atomic.LoadInt32(&app.requestMetrics.FiveMinuteReqCount)
+				app.Logger.Info("Requests per 5 minute: %d", fiveMinuteRate)
+				app.handleMonitoringReport()
+				atomic.StoreInt32(&app.requestMetrics.FiveMinuteReqCount, 0) // Reset 5 minute counter
+				app.requestMetrics.ReportMutex.Unlock()
+
 			case <-hourTicker.C:
 				app.requestMetrics.ReportMutex.Lock()
 				hourRate := atomic.LoadInt32(&app.requestMetrics.HourlyReqCount)
 				app.Logger.Info("Requests per hour: %d", hourRate)
+				app.handleMonitoringReport()
 				atomic.StoreInt32(&app.requestMetrics.HourlyReqCount, 0) // Reset hourly counter
 				app.requestMetrics.ReportMutex.Unlock()
 
@@ -270,86 +287,75 @@ func (app *Crawler) startPerformanceTracking() {
 		}
 	}()
 }
-func (app *Crawler) startMonitoringReport() {
-	go func() {
-		ticker := time.NewTicker(60 * time.Minute)
-		defer ticker.Stop()
+func (app *Crawler) handleMonitoringReport() {
 
-		for {
-			<-ticker.C
-			app.requestMetrics.ReportMutex.Lock()
+	// Calculate metrics
+	totalRequests := atomic.LoadInt32(&app.requestMetrics.ReqCount)
+	failedRequests := atomic.LoadInt32(&app.requestMetrics.FailedCount)
+	successRate := 0.0
+	if totalRequests > 0 {
+		successRate = float64(totalRequests-failedRequests) / float64(totalRequests) * 100
+	}
+	elapsed := time.Since(app.StartTime)
 
-			// Calculate metrics
-			totalRequests := atomic.LoadInt32(&app.requestMetrics.ReqCount)
-			failedRequests := atomic.LoadInt32(&app.requestMetrics.FailedCount)
-			successRate := 0.0
-			if totalRequests > 0 {
-				successRate = float64(totalRequests-failedRequests) / float64(totalRequests) * 100
-			}
-			elapsed := time.Since(app.StartTime)
+	minuteRate := atomic.LoadInt32(&app.requestMetrics.MinuteReqCount)
+	fiveMinuteRate := atomic.LoadInt32(&app.requestMetrics.FiveMinuteReqCount)
+	hourRate := atomic.LoadInt32(&app.requestMetrics.HourlyReqCount)
+	dayRate := atomic.LoadInt32(&app.requestMetrics.DayReqCount)
+	// Calculate monthly forecast (30 days)
+	monthlyForecast := int32(hourRate) * 24 * 30
+	type CrawlingPerformance struct {
+		SiteID                string `json:"site_id" bson:"site_id"`
+		TotalRequests         int32  `json:"total_requests" bson:"total_requests"`
+		FailedRequests        int32  `json:"failed_requests" bson:"failed_requests"`
+		SuccessRate           int32  `json:"success_rate" bson:"success_rate"`
+		ElapsedTime           int32  `json:"elapsed_time" bson:"elapsed_time"`
+		RequestsPerMinute     int32  `json:"requests_per_minute" bson:"requests_per_minute"`
+		RequestsPerFiveMinute int32  `json:"requests_per_five_minute" bson:"requests_per_five_minute"`
+		RequestsPerHour       int32  `json:"requests_per_hour" bson:"requests_per_hour"`
+		RequestsPerDay        int32  `json:"requests_per_day" bson:"requests_per_day"`
+		MonthlyForecast       int32  `json:"monthly_forecast" bson:"monthly_forecast"`
+	}
+	var report CrawlingPerformance
+	report.SiteID = app.Name
+	report.TotalRequests = totalRequests
+	report.FailedRequests = failedRequests
+	report.SuccessRate = int32(successRate)
+	report.ElapsedTime = int32(elapsed.Seconds())
+	report.RequestsPerMinute = minuteRate
+	report.RequestsPerFiveMinute = fiveMinuteRate
+	report.RequestsPerHour = hourRate
+	report.RequestsPerDay = dayRate
+	report.MonthlyForecast = monthlyForecast
 
-			minuteRate := atomic.LoadInt32(&app.requestMetrics.MinuteReqCount)
-			hourRate := atomic.LoadInt32(&app.requestMetrics.HourlyReqCount)
-			dayRate := atomic.LoadInt32(&app.requestMetrics.DayReqCount)
-			// Calculate monthly forecast (30 days)
-			monthlyForecast := int32(hourRate) * 24 * 30
-			type CrawlingPerformance struct {
-				SiteID            string `json:"site_id" bson:"site_id"`
-				TotalRequests     int32  `json:"total_requests" bson:"total_requests"`
-				FailedRequests    int32  `json:"failed_requests" bson:"failed_requests"`
-				SuccessRate       int32  `json:"success_rate" bson:"success_rate"`
-				ElapsedTime       int32  `json:"elapsed_time" bson:"elapsed_time"`
-				RequestsPerMinute int32  `json:"requests_per_minute" bson:"requests_per_minute"`
-				RequestsPerHour   int32  `json:"requests_per_hour" bson:"requests_per_hour"`
-				RequestsPerDay    int32  `json:"requests_per_day" bson:"requests_per_day"`
-				MonthlyForecast   int32  `json:"monthly_forecast" bson:"monthly_forecast"`
-			}
-			var report CrawlingPerformance
-			report.SiteID = app.Name
-			report.TotalRequests = totalRequests
-			report.FailedRequests = failedRequests
-			report.SuccessRate = int32(successRate)
-			report.ElapsedTime = int32(elapsed.Seconds())
-			report.RequestsPerMinute = minuteRate
-			report.RequestsPerHour = hourRate
-			report.RequestsPerDay = dayRate
-			report.MonthlyForecast = monthlyForecast
+	payloadBytes, err := json.Marshal(report)
+	if err != nil {
+		app.Logger.Error("Failed to marshal monitoring report: %v", err)
+	}
 
-			payloadBytes, err := json.Marshal(report)
-			if err != nil {
-				app.Logger.Error("Failed to marshal monitoring report: %v", err)
-				app.requestMetrics.ReportMutex.Unlock()
-				continue
-			}
+	payload := string(payloadBytes)
 
-			payload := string(payloadBytes)
+	// Log locally and send to API
 
-			// Log locally and send to API
-
-			// Build a structured report
-			log := fmt.Sprintf(`
+	// Build a structured report
+	log := fmt.Sprintf(`
                 ========== Monitoring Report [Hourly] ===========
                 | Metric                | Value                  |
                 |-----------------------|------------------------|
                 | Total Requests        | %d                     |
                 | Failed Requests       | %d                     |
-                | Success Rate          | %.2f                 |
+                | Success Rate          | %.2f                   |
                 | Elapsed Time          | %v                     |
-                | Requests Per Minute   | %d                     |
                 | Requests Per Hour     | %d                     |
                 | Requests Per Day      | %d                     |
                 | MonthlyForecast       | %d                     |
                 ===================================================
-            `, totalRequests, failedRequests, successRate, elapsed, minuteRate, hourRate, dayRate, monthlyForecast)
+            `, totalRequests, failedRequests, successRate, elapsed, hourRate, dayRate, monthlyForecast)
 
-			// Log the consolidated report
-			app.Logger.monitoring(log)
-			if err = app.AddCrawlingLog(payload); err != nil {
-				app.Logger.Error("Failed to send monitoring report to Crawl Manager API: %v", err)
-			}
+	// Log the consolidated report
+	app.Logger.monitoring(log)
+	if err = app.AddCrawlingLog(payload); err != nil {
+		app.Logger.Error("Failed to send monitoring report to Crawl Manager API: %v", err)
+	}
 
-			// Reset counters if required
-			app.requestMetrics.ReportMutex.Unlock()
-		}
-	}()
 }

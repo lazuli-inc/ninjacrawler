@@ -94,11 +94,12 @@ type CrawlResult struct {
 	Document      *goquery.Document
 }
 type RequestMetrics struct {
-	ReqCount       int32      // Total requests since the crawl started
-	HourlyReqCount int32      // Requests in the last hour
-	MinuteReqCount int32      // Requests in the last minute
-	DayReqCount    int32      // Requests in the last day
-	FailedCount    int32      // Track failed requests
-	ReportMutex    sync.Mutex // Mutex for thread-safe metric updates
+	ReqCount           int32      // Total requests since the crawl started
+	HourlyReqCount     int32      // Requests in the last hour
+	MinuteReqCount     int32      // Requests in the last minute
+	FiveMinuteReqCount int32      // Requests in the last 5 minute
+	DayReqCount        int32      // Requests in the last day
+	FailedCount        int32      // Track failed requests
+	ReportMutex        sync.Mutex // Mutex for thread-safe metric updates
 	// Additional fields...
 }

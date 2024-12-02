@@ -42,6 +42,7 @@ func (app *Crawler) Navigate(url string, engines ...Engine) (*NavigationContext,
 	defer cancel()
 	navigationContext, err := app.navigateTo(ctx, page, url, "DeepLink", false, proxy)
 	if err != nil {
+		app.syncFailedRequestMetrics()
 		if strings.Contains(err.Error(), "StatusCode:404") {
 			return nil, err
 		} else if strings.Contains(err.Error(), "isRetryable") {
@@ -105,6 +106,7 @@ func (app *Crawler) Navigates(url string, fn func(*NavigationContext) error, eng
 	defer cancel()
 	navigationContext, err := app.navigateTo(ctx, page, url, "DeepLink", false, proxy)
 	if err != nil {
+		app.syncFailedRequestMetrics()
 		if strings.Contains(err.Error(), "StatusCode:404") {
 			return err
 		} else if strings.Contains(err.Error(), "isRetryable") {
@@ -128,11 +130,12 @@ func (app *Crawler) Navigates(url string, fn func(*NavigationContext) error, eng
 			return err
 		}
 	}
-	app.syncRequestMetrics()
 	fnErr := fn(navigationContext)
 	if fnErr != nil {
+		app.syncFailedRequestMetrics()
 		return err
 	}
+	app.syncRequestMetrics()
 	defer app.closePages(page)
 	return nil
 }

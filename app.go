@@ -14,8 +14,6 @@ import (
 	"time"
 )
 
-var startTime time.Time
-
 const (
 	baseCollection = "sites"
 	dbFilterLimit  = 1000
@@ -94,7 +92,7 @@ func (app *Crawler) Start() {
 			app.HandlePanic(r)
 		}
 	}()
-	startTime = time.Now()
+	app.StartTime = time.Now() // Record start time
 	app.Logger.Summary("Crawler started!")
 	app.bootstrap()
 	deleteDB := app.Config.GetBool("DELETE_DB")
@@ -114,6 +112,7 @@ func (app *Crawler) Start() {
 	app.syncProxies()
 	app.newSite()
 	app.toggleClient()
+	app.startPerformanceTracking() // Start performance tracking
 }
 
 func (app *Crawler) toggleClient() {
@@ -162,7 +161,7 @@ func (app *Crawler) Stop() {
 	if *app.engine.StoreHtml {
 		app.UploadRawHtml()
 	}
-	duration := time.Since(startTime)
+	duration := time.Since(app.StartTime)
 	app.Logger.Summary("Crawler completed!")
 	app.Logger.Summary("Crawling duration %v", duration)
 

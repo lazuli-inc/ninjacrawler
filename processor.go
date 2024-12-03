@@ -4,13 +4,9 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
-	"time"
 )
 
 func (app *Crawler) Crawl(configs []ProcessorConfig) {
-	app.StartTime = time.Now()     // Record start time
-	app.startPerformanceTracking() // Start performance tracking
-
 	for _, config := range configs {
 		app.Logger.Summary("Starting: %s Crawler", config.OriginCollection)
 		app.overrideEngineDefaults(app.engine, &config.Engine)

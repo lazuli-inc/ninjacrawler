@@ -265,7 +265,6 @@ func (app *Crawler) startPerformanceTracking() {
 				app.requestMetrics.ReportMutex.Lock()
 				fiveMinuteRate := atomic.LoadInt32(&app.requestMetrics.FiveMinuteReqCount)
 				app.Logger.Info("Requests per 5 minute: %d", fiveMinuteRate)
-				app.handleMonitoringReport()
 				atomic.StoreInt32(&app.requestMetrics.FiveMinuteReqCount, 0) // Reset 5 minute counter
 				app.requestMetrics.ReportMutex.Unlock()
 
